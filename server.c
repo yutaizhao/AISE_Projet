@@ -1,13 +1,4 @@
-#include <fcntl.h>
-#include <netdb.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
-#include <pthread.h>
+#include "server_lib.h"
 
 void *handle_client(void *psocket) {
   int client_fd = *((int *)psocket);
@@ -28,47 +19,17 @@ void *handle_client(void *psocket) {
         
         //if ping return pong
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
-            ssize_t client_pong = send(client_fd, "pong\n", strlen("pong\n"), 0);
-            if (client_pong == -1) {
-                perror("Response failed\n");
-            } else {
-                printf("Sent to client: pong\n" );
-            }
+            pong(&client_fd);
         }
         else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4 )
         {
-            
-            FILE *file;
-            file = fopen("./config/config.txt", "w+");
-            if (file == NULL) {perror("open file failed\n");}
-            
-            char *set_info = (char *)malloc(sizeof(char)*(strlen(buff)-4));
-            strcpy(set_info,buff+4);
-            printf("%s",set_info);
-            fprintf(file,"%s", set_info);
-            free((void *)set_info);
-            fclose(file);
-            
-            ssize_t client_done = send(client_fd, "Done", strlen("Done"), 0);
-            if (client_done == -1) {
-                perror("Response failed\n");
-            } else {
-                printf("Done\n" );
-            }
+            set(&client_fd, buff);
         }
         else
         {
-            //else
-            //eviter quee stdin soit bouch, cuz not send back
-            ssize_t client_done = send(client_fd, "Verifier votre commande\n", strlen("Verifier votre commande\n"), 0);
-            if (client_done == -1) {
-                perror("Response failed\n");
-            } else {
-                printf("BAD client commande\n" );
-            }
+            other(&client_fd);
         }
     }
-
   close(client_fd);
   return NULL;
 }
