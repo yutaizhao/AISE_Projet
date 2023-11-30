@@ -17,22 +17,29 @@ void *handle_client(void *psocket) {
     while(1){
         memset(buff, 0, sizeof(buff));
         ssize_t receiv_client = recv(client_fd, &buff, sizeof(buff), 0);
-        printf("Received from client: %s", buff);
+        
+       if (receiv_client == 0) {
+            printf("a client disconnected\n" );
+            ssize_t client_quit = send(client_fd, buff, receiv_client, 0);
+            break;
+       } else if (receiv_client > 0) {
+           printf("received from client %s", buff);
+       }
         
         //if ping return pong
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
-            ssize_t client_pong = send(client_fd, "pong", strlen("pong"), 0);
+            ssize_t client_pong = send(client_fd, "pong\n", strlen("pong\n"), 0);
             if (client_pong == -1) {
                 perror("Response failed\n");
             } else {
                 printf("Sent to client: pong\n" );
             }
-        } 
+        }
         else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4 )
         {
             
             FILE *file;
-            file = fopen("config.txt", "w+");
+            file = fopen("./config/config.txt", "w+");
             if (file == NULL) {perror("open file failed\n");}
             
             char *set_info = (char *)malloc(sizeof(char)*(strlen(buff)-4));
@@ -49,7 +56,8 @@ void *handle_client(void *psocket) {
                 printf("Done\n" );
             }
         }
-        else{
+        else
+        {
             //else
             //eviter quee stdin soit bouch, cuz not send back
             ssize_t client_done = send(client_fd, "Verifier votre commande\n", strlen("Verifier votre commande\n"), 0);
@@ -61,7 +69,7 @@ void *handle_client(void *psocket) {
         }
     }
 
-  //close(client_fd);
+  close(client_fd);
   return NULL;
 }
 
@@ -115,10 +123,12 @@ int main(int argc, char **argv) {
     break;
   }
     //END setting server
-  if (!success) {
-    (void)fprintf(stderr, "Failed to create server");
-    exit(1);
-  }
+    if (!success) {
+        (void)fprintf(stderr, "Failed to create server");
+        exit(1);
+    }
+    
+    mkdir("config",0777);
 
   while (1) {
     struct sockaddr addr;
@@ -127,7 +137,7 @@ int main(int argc, char **argv) {
 
     if (ret < 0) {
       perror("accept");
-      exit(1);
+      continue;
     }
       
     /* We have a client */

@@ -77,7 +77,13 @@ int main(int argc, char ** argv)
             
                 if(sent_server == -1) {
                     perror("failed");
-                }else{printf("Sent to server: %s", buff);}
+                }else if (sent_server == 0) {
+                    printf("disconneection");
+                    break;
+                }
+                else {
+                    printf("Sent to server: %s", buff);
+                }
                     
                 ssize_t receiv_server = recv(sock, &rece, sizeof(rece), 0); //recerive
                 
