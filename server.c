@@ -11,25 +11,57 @@
 
 void *handle_client(void *psocket) {
   int client_fd = *((int *)psocket);
-
-  char buff[1024];
+    
+    char buff[1024];
+    
     while(1){
         memset(buff, 0, sizeof(buff));
-        ssize_t client_ping = recv(client_fd, &buff, sizeof(buff), 0);
-        if (strncmp(buff, "ping", 4) == 0) {
+        ssize_t receiv_client = recv(client_fd, &buff, sizeof(buff), 0);
+        printf("Received from client: %s", buff);
+        
+        //if ping return pong
+        if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
             ssize_t client_pong = send(client_fd, "pong", strlen("pong"), 0);
-            
-            
             if (client_pong == -1) {
-                perror("send");
-                printf("Response failed\n");
+                perror("Response failed\n");
             } else {
                 printf("Sent to client: pong\n" );
             }
+        } 
+        else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4 )
+        {
             
+            FILE *file;
+            file = fopen("config.txt", "w+");
+            if (file == NULL) {perror("open file failed\n");}
+            
+            char *set_info = (char *)malloc(sizeof(char)*(strlen(buff)-4));
+            strcpy(set_info,buff+4);
+            printf("%s",set_info);
+            fprintf(file,"%s", set_info);
+            free((void *)set_info);
+            fclose(file);
+            
+            ssize_t client_done = send(client_fd, "Done", strlen("Done"), 0);
+            if (client_done == -1) {
+                perror("Response failed\n");
+            } else {
+                printf("Done\n" );
+            }
+        }
+        else{
+            //else
+            //eviter quee stdin soit bouch, cuz not send back
+            ssize_t client_done = send(client_fd, "Verifier votre commande\n", strlen("Verifier votre commande\n"), 0);
+            if (client_done == -1) {
+                perror("Response failed\n");
+            } else {
+                printf("BAD client commande\n" );
+            }
         }
     }
-    //close(client_fd) no need! WHY HERE
+
+  //close(client_fd);
   return NULL;
 }
 

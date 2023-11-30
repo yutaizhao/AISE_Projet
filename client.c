@@ -73,19 +73,17 @@ int main(int argc, char ** argv)
         
         if(fgets(buff, 1024, stdin))
         {
-            if(strncmp(buff,"ping",4)==0){
-                ssize_t ping = send(sock,&buff,sizeof(buff),0); //send
-                
-                if(ping == -1) {
+                ssize_t sent_server = send(sock,&buff,sizeof(buff),0); //send
+            
+                if(sent_server == -1) {
                     perror("failed");
-                }
+                }else{printf("Sent to server: %s", buff);}
                     
-                ssize_t pong = recv(sock, &rece, sizeof(rece), 0); //recerive
+                ssize_t receiv_server = recv(sock, &rece, sizeof(rece), 0); //recerive
                 
-                if (pong > 0) {
-                    buff[pong] = '\0'; // 用null结尾接收的数据
-                    printf("Received from server: %s\n", rece);
-                } else if (pong == 0) {
+                if (receiv_server > 0) {
+                    printf("%s", rece);
+                } else if (receiv_server == 0) {
                     printf("Server disconnected\n");
                     break;
                 } else {
@@ -93,9 +91,8 @@ int main(int argc, char ** argv)
                     break;
                 }
                 
-            }
-            
         }
+            
     }
 
 
