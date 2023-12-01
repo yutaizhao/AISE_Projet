@@ -4,4 +4,3 @@ cd $Path
 make clean
 sleep 1
 make
-./server 8080

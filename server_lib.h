@@ -9,6 +9,8 @@
 #include <unistd.h>
 #include <pthread.h>
 
+int findAndUpdateKey(char* key_value);
+int check_format(char* key_value);
 
 void pong(int* fd);
 void set(int* fd,char* buf);

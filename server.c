@@ -14,16 +14,21 @@ void *handle_client(void *psocket) {
             ssize_t client_quit = send(client_fd, buff, receiv_client, 0);
             break;
        } else if (receiv_client > 0) {
-           printf("received from client %s", buff);
+           printf("Received from client %s", buff);
        }
         
         //if ping return pong
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
             pong(&client_fd);
         }
-        else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4 )
+        else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4)
         {
-            set(&client_fd, buff);
+            if(buff[3]!=' '){
+                send(client_fd, "Usage SET [key] [value]\n", strlen("Usage SET [key] [value]\n"), 0);
+            }else{
+                set(&client_fd, buff);
+            }
+            
         }
         else
         {
