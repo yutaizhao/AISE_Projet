@@ -9,11 +9,13 @@
 #include <unistd.h>
 #include <pthread.h>
 
-int findAndUpdateKey(char* key_value);
-int check_format(char* key_value);
+int SET(char* key_value);
+char* GET(char* key_value);
+int check_SET_format(char* buff);
+int check_GET_format(char* buff);
 
 void pong(int* fd);
 void set(int* fd,char* buf);
-void get(int* fd);
+void get(int* fd,char* buf);
 void other(int* fd);
 

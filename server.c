@@ -21,12 +21,25 @@ void *handle_client(void *psocket) {
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
             pong(&client_fd);
         }
+        //set
         else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4)
         {
-            if(buff[3]!=' '){
-                send(client_fd, "Usage SET [key] [value]\n", strlen("Usage SET [key] [value]\n"), 0);
+            if(check_SET_format(buff)==0){
+                send(client_fd, "Usage: SET [key] [value]\n", strlen("Usage: SET [key] [value]\n"), 0);
             }else{
+                
                 set(&client_fd, buff);
+            }
+            
+        }
+        //get
+        else if (strncmp(buff, "GET", 3) == 0 && strlen(buff) >4)
+        {
+            if(check_GET_format(buff)==0){
+                send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
+            }else{
+                
+                get(&client_fd, buff);
             }
             
         }
