@@ -1,12 +1,19 @@
-check : server client
+all : server client 
+server: string.o server_lib.o server.o
+	gcc -g -Wall $^ -o $@
 
-server :
-	gcc -c ../server_lib/string.c -o string.o
-	gcc -c ../server_lib/server_lib.c -o server_lib.o
-	gcc -c ../server.c -o server.o
-	gcc string.o server_lib.o server.o -o server
-client :
-	gcc ../client.c -o client
+client: ../client.c
+	gcc -g $< -o $@
 
-clean :
+string.o: ../server_lib/string.c
+	gcc -g -c $< -o $@
+
+server_lib.o: ../server_lib/server_lib.c
+	gcc -g -c $< -o $@
+
+server.o: ../server.c
+	gcc -g -c $< -o $@
+
+clean:
 	rm -f server client *.o
+

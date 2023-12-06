@@ -12,6 +12,7 @@
 
 struct string{ // list of key_value
     
+    int len;
     char type; //s = string, int = d, float =f;
     char* key;
     char* value;

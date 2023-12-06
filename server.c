@@ -5,7 +5,15 @@ void *handle_client(void *psocket) {
   int client_fd = *((int *)psocket);
     
     char buff[1024];
-    struct string* client_string = (struct string*)malloc(sizeof(struct string*)*100);
+    struct string* client_string = (struct string*)malloc(sizeof(struct string));
+    /*
+     CAN ENGEENDER SEG FAULT
+    client_string->len = 4;
+    client_string->type = 's';
+    client_string->key = strdup("ping");
+    client_string->value = strdup("pong");
+    client_string->next_KeyValue =NULL;
+     */
     
     while(1){
         memset(buff, 0, sizeof(buff));
@@ -30,7 +38,7 @@ void *handle_client(void *psocket) {
             if(check_SET_format(buff)==0){
                 send(client_fd, "Usage: SET [key] [value]\n", strlen("Usage: SET [key] [value]\n"), 0);
             }else{
-                // set HASH
+                // set str
                 
                 set(&client_fd, buff, client_string);
             }
@@ -42,7 +50,7 @@ void *handle_client(void *psocket) {
             if(check_GET_format(buff)==0){
                 send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
             }else{
-                // get HASH
+                // get str
                 get(&client_fd, buff, client_string);
             }
             
@@ -52,7 +60,11 @@ void *handle_client(void *psocket) {
             other(&client_fd);
         }
     }
-    free(client_string);
+    if(client_string!=NULL) {
+        free(client_string);
+        client_string = NULL;
+        printf("a client_string is free");
+    }
   close(client_fd);
   return NULL;
 }

@@ -74,37 +74,41 @@ int check_GET_format(char* buff){
 
 struct string* GET(char* given_Key,struct string* list){
     
-    struct string* res = NULL;
-    
     struct string* current_KeyValue = list; //eviter
     
     while ((*current_KeyValue).next_KeyValue != NULL) {
-        
         if(strcmp((*current_KeyValue).key, given_Key) == 0) {
             printf("valuee : %s \n",(*current_KeyValue).value);
-            res = current_KeyValue;
-            break;
+            return current_KeyValue;
         }
         
         current_KeyValue =  (*current_KeyValue).next_KeyValue;
     }
     
-    return res;
+    /*was forgetten*/
+    if(strcmp((*current_KeyValue).key, given_Key) == 0) {
+        printf("valuee : %s \n",(*current_KeyValue).value);
+        return current_KeyValue;
+    }
+    
+    
+    return NULL;
 }
 
 
 void get(int* fd,char* buf, struct string* list){
     
     char* kv = buf +4;
-    char *targetKey = strtok(kv, " ");
+    char* targetKey = strtok(kv, " ");
     targetKey[strcspn(targetKey, "\n")] = '\0';
     
     struct string* str = GET(targetKey,list);
-    char* v = (*str).value;
     
-    if (v == NULL) {
+    if (str == NULL) {
         if(send(*fd, "Can not find key\n", strlen("Can not find key\n"), 0)==-1) {perror("Response failed\n");}
     } else {
+        char* v = strdup((*str).value);
+        strcat(v,"\n");
         if(send(*fd, v, strlen(v), 0)==-1) {perror("Response failed\n");}
     }
 }
@@ -121,11 +125,35 @@ struct string* SET(char* given_KeyValue, struct string* list){
     struct string* str = GET(targetKey,list);
     
     if(str != NULL){
+        free((*str).value); //causing seg fault
+        (*str).value = NULL;
         (*str).type = type_checker(newValue);
-        (*str).value = newValue;
+        (*str).value = strdup(newValue);
+        (*str).len = strlen(newValue);
+        
+        return str;
+    }else{
+        struct string* new_str = (struct string*)malloc(sizeof(struct string));
+        (*new_str).type = type_checker(newValue);
+        (*new_str).len = strlen(newValue);
+        (*new_str).value = strdup(newValue);
+        (*new_str).key = strdup(targetKey);
+        (*new_str).next_KeyValue = NULL;
+        
+        if (list == NULL) {
+            list = new_str;  // list is null => new_str is the head
+        } else {
+            struct string* current = list;
+            while (current->next_KeyValue != NULL) {
+                current = current->next_KeyValue;
+            }
+            current->next_KeyValue = new_str;  // 链接到列表的末尾
+        }
+        
+        
+        return new_str;
+        
     }
-    
-    return str;
 }
 
 void set(int* fd,char* buf,struct string* list){
@@ -135,11 +163,9 @@ void set(int* fd,char* buf,struct string* list){
     
     
     if (k == NULL) {
-        if(send(*fd, "Can not find key\n", strlen("Can not find key\n"), 0)==-1) {perror("Response failed\n");}
+        if(send(*fd, "Failed to SET\n", strlen("Failed to SET\n"), 0)==-1) {perror("Response failed\n");}
     } else {
-        char* v = "the new value for passed key is : ";
-        strcat(v, (*k).value);
-        if(send(*fd, v, strlen(v), 0)==-1) {perror("Response failed\n");}
+        if(send(*fd, "SET done \n", strlen("SET done \n"), 0)==-1) {perror("Response failed\n");}
     }
 }
 
