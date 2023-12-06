@@ -1,9 +1,11 @@
-#include "server_lib.h"
+#include "./server_lib/server_lib.h"
+
 
 void *handle_client(void *psocket) {
   int client_fd = *((int *)psocket);
     
     char buff[1024];
+    struct string* client_string = (struct string*)malloc(sizeof(struct string*)*100);
     
     while(1){
         memset(buff, 0, sizeof(buff));
@@ -17,8 +19,9 @@ void *handle_client(void *psocket) {
            printf("Received from client %s", buff);
        }
         
-        //if ping return pong
+        
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
+            //if ping return pong
             pong(&client_fd);
         }
         //set
@@ -27,8 +30,9 @@ void *handle_client(void *psocket) {
             if(check_SET_format(buff)==0){
                 send(client_fd, "Usage: SET [key] [value]\n", strlen("Usage: SET [key] [value]\n"), 0);
             }else{
+                // set HASH
                 
-                set(&client_fd, buff);
+                set(&client_fd, buff, client_string);
             }
             
         }
@@ -38,8 +42,8 @@ void *handle_client(void *psocket) {
             if(check_GET_format(buff)==0){
                 send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
             }else{
-                
-                get(&client_fd, buff);
+                // get HASH
+                get(&client_fd, buff, client_string);
             }
             
         }
@@ -48,6 +52,7 @@ void *handle_client(void *psocket) {
             other(&client_fd);
         }
     }
+    free(client_string);
   close(client_fd);
   return NULL;
 }
