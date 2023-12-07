@@ -6,18 +6,22 @@ void *handle_client(void *psocket) {
     
     char buff[1024];
     struct string* client_string = (struct string*)malloc(sizeof(struct string));
-    /*
-     CAN ENGEENDER SEG FAULT
-    client_string->len = 4;
-    client_string->type = 's';
-    client_string->key = strdup("ping");
-    client_string->value = strdup("pong");
+    client_string->len = -1;
+    client_string->type = 'N';
+    client_string->key = NULL;
+    client_string->value = NULL;
     client_string->next_KeyValue =NULL;
-     */
     
     while(1){
         memset(buff, 0, sizeof(buff));
         ssize_t receiv_client = recv(client_fd, &buff, sizeof(buff), 0);
+        if(empty_checker(client_string)==-1){
+            client_string = (struct string*)malloc(sizeof(struct string));
+            client_string->len = -1;
+            client_string->type = 'N';
+            client_string->key = NULL;
+            client_string->value = NULL;
+            client_string->next_KeyValue =NULL;}
         
        if (receiv_client == 0) {
             printf("a client disconnected\n" );
@@ -60,11 +64,13 @@ void *handle_client(void *psocket) {
             other(&client_fd);
         }
     }
+    
     if(client_string!=NULL) {
         free(client_string);
         client_string = NULL;
-        printf("a client_string is free");
+        printf("a client_string is free \n");
     }
+    
   close(client_fd);
   return NULL;
 }

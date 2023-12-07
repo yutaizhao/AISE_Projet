@@ -22,7 +22,11 @@ struct string{ // list of key_value
     
 };
 
+
+
 char type_checker(char* value);
+int empty_checker(struct string* list);
+
 void set(int* fd,char* buff, struct string* list);
 void get(int* fd,char* buff, struct string* list);
 struct string* SET(char* given_KeyValue, struct string* list);
