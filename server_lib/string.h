@@ -29,7 +29,9 @@ int empty_checker(struct string* list);
 
 void set(int* fd,char* buff, struct string* list);
 void get(int* fd,char* buff, struct string* list);
+void del(int* fd,char* buff, struct string* list);
 struct string* SET(char* given_KeyValue, struct string* list);
 struct string* GET(char* given_Key, struct string* list);
+struct string* DEL(char* given_Key, struct string* list);
 int check_SET_format(char* buff);
 int check_GET_format(char* buff);

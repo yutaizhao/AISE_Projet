@@ -15,14 +15,7 @@ void *handle_client(void *psocket) {
     while(1){
         memset(buff, 0, sizeof(buff));
         ssize_t receiv_client = recv(client_fd, &buff, sizeof(buff), 0);
-        if(empty_checker(client_string)==-1){
-            client_string = (struct string*)malloc(sizeof(struct string));
-            client_string->len = -1;
-            client_string->type = 'N';
-            client_string->key = NULL;
-            client_string->value = NULL;
-            client_string->next_KeyValue =NULL;}
-        
+
        if (receiv_client == 0) {
             printf("a client disconnected\n" );
             ssize_t client_quit = send(client_fd, buff, receiv_client, 0);
@@ -51,11 +44,23 @@ void *handle_client(void *psocket) {
         //get
         else if (strncmp(buff, "GET", 3) == 0 && strlen(buff) >4)
         {
+            printf("getting ! \n");
             if(check_GET_format(buff)==0){
                 send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
             }else{
                 // get str
                 get(&client_fd, buff, client_string);
+            }
+            
+        }
+        else if (strncmp(buff, "DEL", 3) == 0 && strlen(buff) >4)
+        {
+            printf("DELETING ! \n");
+            if(buff[3]!=' '){
+                send(client_fd, "Usage: DEL [key] [key]\n", strlen("Usage: DEL [key] [key]\n"), 0);
+            }else{
+                // del str
+                del(&client_fd, buff, client_string);
             }
             
         }
