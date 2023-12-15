@@ -62,7 +62,76 @@ int main(int argc, char ** argv)
     else
     {
         printf("Connected to %s:%s\n", argv[1], argv[2]);
+        
     }
+    
+    
+    /*
+     client need to be added in white list
+     */
+    int login = 0 ;
+    
+    char pass_buff[12];
+    char pass_rece[12];
+    
+    
+    FILE *config = fopen("config.txt", "wx");
+
+    if (config != NULL) {
+        perror("config not existed, one is created, please set up your identifiant and communicate with the server \n");
+        return 1;
+    }
+
+    fclose(config);
+    
+    FILE *file;
+    file = fopen("config.txt", "r");
+    if (file == NULL) {
+        perror("open config failed\n");
+        return 1;
+    }
+    
+    if (fgets(pass_buff, sizeof(pass_buff), file) != NULL) {
+        send(sock,pass_buff,sizeof(pass_buff),0);
+        login = 1 ;
+    } else {
+        perror("Empty file\n");
+        fclose(file);
+        return 1;
+    }
+    
+    while(login == 1){
+        
+        ssize_t receiv_server = recv(sock, pass_rece, sizeof(pass_rece), 0);
+        
+        if (receiv_server > 0) {
+            login = 2 ;
+        } else if (receiv_server == 0) {
+            printf("Server disconnected\n");
+            close(sock);
+            return 0;
+        } else {
+            perror("recv\n");
+            close(sock);
+            return 0;
+        }
+        
+    }
+    
+    if(login == 2){
+        if(strcmp(pass_rece,"valid")){
+            printf("login !!!\n");
+        }else{
+            printf("unvalid indentity\n" );
+            fclose(file);
+            return 1;
+        }
+    }
+    
+    
+    fclose(file);
+    
+    
 
     char buff[1024];
     char rece[1024];
@@ -73,7 +142,7 @@ int main(int argc, char ** argv)
         
         if(fgets(buff, 1024, stdin))
         {
-                ssize_t sent_server = send(sock,&buff,sizeof(buff),0); //send
+                ssize_t sent_server = send(sock,buff,sizeof(buff),0); //send
  
                 if(sent_server == -1) {
                     perror("failed");
@@ -82,15 +151,15 @@ int main(int argc, char ** argv)
                     break;
                 }
                 else {
-                    printf("Sent to server: %s", buff);
+                    printf("[%s] : %s", pass_buff, buff);
                 }
                     
-                ssize_t receiv_server = recv(sock, &rece, sizeof(rece), 0); //recerive
+                ssize_t receiv_server = recv(sock, rece, sizeof(rece), 0); //recerive
                 
                 if (receiv_server > 0) {
-                    printf("%s", rece);
+                    printf("[server] : %s", rece);
                 } else if (receiv_server == 0) {
-                    printf("Server disconnected\n");
+                    printf("[server] : has been disconnected\n");
                     break;
                 } else {
                     perror("recv");
@@ -105,3 +174,5 @@ int main(int argc, char ** argv)
     close(sock);
     return 0;
 }
+
+

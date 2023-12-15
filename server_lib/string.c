@@ -16,7 +16,7 @@ char type_checker(char* value){
     long int_value = strtol(value, &endptr, 10);
 
     if (*endptr == '\0' || *endptr == '\n') {
-        printf("The value is an integer: %ld\n", int_value);
+        printf("The %ld is an int \n", int_value);
         return 'd';
     } else {
         //if what is converted is not all
@@ -25,13 +25,13 @@ char type_checker(char* value){
         double float_value = strtod(value, &endptr);
 
         if (*endptr == '\0' || *endptr == '\n') {
-            printf("The value is a float: %lf\n", float_value);
+            printf("The %lf is a float\n", float_value);
             return 'f';
         }
     }
     //if what is converted is not all
     //then its not float neitheer
-    printf("The value is a string: %s\n", value);
+    printf("The %s is a string \n", value);
     return 's';
 }
 
@@ -91,21 +91,15 @@ struct string* GET(char* given_Key,struct string* list){
         if(strcmp((*current_KeyValue).key, given_Key) == 0) {
             return current_KeyValue;
         }
-        printf("counter ! \n");
          if((*current_KeyValue).next_KeyValue == NULL){printf("is a NULL; \n");}
         current_KeyValue =  (*current_KeyValue).next_KeyValue;
        
-        printf("counter_2 ! \n");
-        
     }
-    printf("passed !\n");
  
     if(strcmp(current_KeyValue->key, given_Key) == 0) {
-        printf("passed 3 !\n");
         return current_KeyValue;
     }
     
-    printf("passed 4 !\n");
     return NULL;
 }
 
@@ -188,11 +182,11 @@ void set(int* fd,char* buff,struct string* list){
 
 
 struct string* DEL(char* given_Key,struct string** list){
-    printf("PASS 0\n");
+
     if(empty_checker(*list)!=1){return NULL;}
     struct string* current_KeyValue = *list; //eviter
     struct string* current_KeyValue_save = *list; //eviter
-    printf("PASS 1\n");
+
      if (strcmp(current_KeyValue->key, given_Key) == 0 &&(*current_KeyValue).next_KeyValue == NULL){
          free(*list) ;
          *list =NULL;
@@ -204,16 +198,13 @@ struct string* DEL(char* given_Key,struct string** list){
         (*list)->next_KeyValue = NULL;
         return *list;
      }
-    printf("PASS 2\n");
+
     if (strcmp(current_KeyValue->key, given_Key) == 0 &&(*current_KeyValue).next_KeyValue != NULL){
         
         *list =  current_KeyValue->next_KeyValue;
         free ( current_KeyValue);
         current_KeyValue=NULL;
         current_KeyValue_save=NULL;
-
-        printf("delete %s",given_Key);
-        if(GET( given_Key, *list)==NULL){printf("delete successfully\n"); }
         return  *list;
      }
     //incase after delete next key_value is NULL
@@ -222,32 +213,27 @@ struct string* DEL(char* given_Key,struct string** list){
     }
     current_KeyValue = current_KeyValue->next_KeyValue;
     
-    printf("PASS 3\n");
     
     while ((*current_KeyValue).next_KeyValue != NULL) {
-        printf("PASS 3_1\n");
+
         if(strcmp((*current_KeyValue).key, given_Key) == 0) {
-            printf("PASS 3_2\n");
+
             (*current_KeyValue_save).next_KeyValue=(*current_KeyValue).next_KeyValue;
-            printf("PASS 3_3\n");
+
             free ( current_KeyValue);
             current_KeyValue=NULL;
-            printf("delete %s \n",given_Key);
-            if(GET( given_Key, *list)==NULL){printf("delete successfully\n"); }
             return *list;
         }
         current_KeyValue_save=current_KeyValue;
         current_KeyValue =  (*current_KeyValue).next_KeyValue;
     }
     
-// 最后一项
-    printf("PASS 4\n");
+    // 最后一项
+
     if(strcmp((*current_KeyValue).key, given_Key) == 0) {
         free ( current_KeyValue);
         current_KeyValue=NULL; 
         current_KeyValue_save->next_KeyValue=NULL;
-        printf("delete %s\n",given_Key);
-        if(GET( given_Key, *list)==NULL){printf("delete successfully\n"); }
         return *list;
     }
 
@@ -266,13 +252,11 @@ struct string* DEL(char* given_Key,struct string** list){
     struct string* str = DEL(targetKey,list);
     
     if (str != NULL) {
-        printf("NOW CHECKING\n");
-
         struct string* result = GET(targetKey, *list);
         if (result == NULL) {
-            printf("recheck: delete successfully\n");
+            printf("recheck: key %s deleted successfully\n",targetKey);
         } else {
-            printf("recheck: delete failed\n");
+            printf("recheck: key %s deleted failed\n", targetKey);
         }
         
         counter_success=counter_success+1;
@@ -282,14 +266,14 @@ struct string* DEL(char* given_Key,struct string** list){
        
     while (targetKey != NULL) {
         targetKey[strcspn(targetKey, "\n")] = '\0';
-        
-        printf("targetKey: %s\n", targetKey);
         struct string* str = DEL(targetKey,list);
-        printf("DONE\n");
         if (str != NULL) {
-            printf("NOW CHECKING\n");
             struct string* result = GET(targetKey, *list);
-            if (result == NULL) {printf("recheck: delete successfully\n");} else {printf("recheck: delete failed\n");}
+            if (result == NULL) {
+                printf("recheck: key %s deleted successfully\n",targetKey);
+            } else {
+                printf("recheck: key %s deleted failed\n",targetKey);
+            }
             counter_success = counter_success+1;
         }
         targetKey = strtok(NULL, " ");
@@ -300,12 +284,39 @@ struct string* DEL(char* given_Key,struct string** list){
        if (counter == counter_success) {
            if(send(*fd, "all key deleted\n", strlen("all key deleted\n"), 0)==-1) {perror("Response failed\n");}
        } else {
-           if(send(*fd, "ATTENTION !\n", strlen("ATTENTION !\n"), 0)==-1) {perror("Response failed\n");}
+           if(send(*fd, "ATTENTION : there are keys not deleted !\n", strlen("ATTENTION : there are keys not deleted !\n"), 0)==-1) {perror("Response failed\n");}
        }
 }
 
     
+void save(int* fd, struct string* list, char* path){
+    
+    FILE *file;
+    file = fopen(path, "w");
+    if (file == NULL) {
+        perror("open file failed\n");
+        if(send(*fd, "Failed to SAVE\n", strlen("Failed to SAVE\n"), 0)==-1) {perror("Response failed\n");}
+            return ;
+        }
+        
+    if(empty_checker(list)!=1){
+        if(send(*fd, "No data to SAVE\n", strlen("No data to SAVE\n"), 0)==-1) {perror("Response failed\n");}
+        fclose(file);
+        return ;
+    }
+            
+    struct string* current_KeyValue = list; //eviter
+    
+    while (current_KeyValue != NULL) {
+        
+        fprintf(file, "%s %s\n",  (*current_KeyValue).key, (*current_KeyValue).value);
+        current_KeyValue = current_KeyValue->next_KeyValue;
+    }
+    
+    fclose(file);
+    if(send(*fd, "DONE SAVE\n", strlen("DONE SAVE\n"), 0)==-1) {perror("Response failed\n");}
 
+}
 
 
 
