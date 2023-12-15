@@ -15,7 +15,7 @@ void *handle_client(void *psocket) {
     while(1){
         memset(buff, 0, sizeof(buff));
         ssize_t receiv_client = recv(client_fd, &buff, sizeof(buff), 0);
-
+        
        if (receiv_client == 0) {
             printf("a client disconnected\n" );
             ssize_t client_quit = send(client_fd, buff, receiv_client, 0);
@@ -44,7 +44,6 @@ void *handle_client(void *psocket) {
         //get
         else if (strncmp(buff, "GET", 3) == 0 && strlen(buff) >4)
         {
-            printf("getting ! \n");
             if(check_GET_format(buff)==0){
                 send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
             }else{
@@ -53,14 +52,14 @@ void *handle_client(void *psocket) {
             }
             
         }
+        //DEL
         else if (strncmp(buff, "DEL", 3) == 0 && strlen(buff) >4)
         {
-            printf("DELETING ! \n");
-            if(buff[3]!=' '){
-                send(client_fd, "Usage: DEL [key] [key]\n", strlen("Usage: DEL [key] [key]\n"), 0);
+            if(buff[3] != ' '){
+                send(client_fd, "Usage: DEL [key]\n", strlen("Usage: DEL [key]\n"), 0);
             }else{
-                // del str
-                del(&client_fd, buff, client_string);
+                // get str
+                del(&client_fd, buff, &client_string);
             }
             
         }
@@ -135,7 +134,9 @@ int main(int argc, char **argv) {
         exit(1);
     }
     
-    mkdir("config",0777);
+    mkdir("data",0777);
+    touch("data/data.txt");
+    
 
   while (1) {
     struct sockaddr addr;

@@ -20,3 +20,15 @@ void other(int* fd){
         printf("client has send a unknown commande\n" );
     }
 }
+
+int touch(const char *filename) {
+    int fd = open(filename, O_CREAT | O_RDWR, 0600);
+
+    if (fd == -1) {
+        perror("Unable to touch file");
+        return 0;
+    }
+
+    close(fd);
+    return 1;
+}

@@ -5,12 +5,6 @@ int empty_checker(struct string* list){
     if (list->key == NULL && list->value ==NULL && list->type =='N' && list->len ==-1 &&list->next_KeyValue ==NULL ) {
         return 0;
     } else if(list == NULL){
-        list = (struct string*)malloc(sizeof(struct string));
-        list->len = -1;
-        list->type = 'N';
-        list->key = NULL;
-        list->value = NULL;
-        list->next_KeyValue =NULL;
         return -1;
     }
     return 1;
@@ -85,8 +79,6 @@ int check_GET_format(char* buff){
     return 1;
 }
 
-
-
 struct string* GET(char* given_Key,struct string* list){
 
     if(empty_checker(list)!=1){return NULL;}
@@ -100,17 +92,14 @@ struct string* GET(char* given_Key,struct string* list){
             return current_KeyValue;
         }
         printf("counter ! \n");
-        if((*current_KeyValue).next_KeyValue == NULL){printf("is a NULL; \n");}
-        printf("counter_2 ! \n");
+         if((*current_KeyValue).next_KeyValue == NULL){printf("is a NULL; \n");}
         current_KeyValue =  (*current_KeyValue).next_KeyValue;
+       
+        printf("counter_2 ! \n");
+        
     }
     printf("passed !\n");
-    
-    if( empty_checker(current_KeyValue) != 1 ){printf("EMPTY !\n"); return NULL;}
-    if( (*current_KeyValue).key == NULL ){printf("EMPTY key!\n"); return NULL;}
-    if( given_Key == NULL ){printf("EMPTY str!\n"); return NULL;}
-    printf("passed 2 !\n");
-    /*was forgetten*/
+ 
     if(strcmp(current_KeyValue->key, given_Key) == 0) {
         printf("passed 3 !\n");
         return current_KeyValue;
@@ -119,6 +108,10 @@ struct string* GET(char* given_Key,struct string* list){
     printf("passed 4 !\n");
     return NULL;
 }
+
+
+
+
 
 
 void get(int* fd,char* buff, struct string* list){
@@ -194,70 +187,131 @@ void set(int* fd,char* buff,struct string* list){
 }
 
 
-struct string* DEL(char* given_Key, struct string* list){
-    
-    //这里我删掉了get，相同功能可以与之后的循环一起完成，虽然这么写在特殊情况系统开销会更小，但在默认情况下循环太多了，系统开销太大
-    if(empty_checker(list)!=1){return NULL;}
-    
-    struct string* current_KeyValue = list; //1
-    struct string* current_KeyValue_save = list; //1
-    
-    //if the head is targetkey to be deleted
-    //我从循环中挪出了这个判断，因为判断是消耗第二大的指令类型了，
-    if (strcmp((*list).key, given_Key) == 0){
-        if(empty_checker((*list).next_KeyValue)==-1){printf("A whole string has been delete \n");}//蛋蛋猫猫
-        list =  (*list).next_KeyValue;
-        free (current_KeyValue);
-        current_KeyValue=NULL;
-        if(GET(given_Key, list)==NULL){printf("recheck : delete successfully\n"); }
-        printf("delete %s \n",given_Key);
-        return list;
+struct string* DEL(char* given_Key,struct string** list){
+    printf("PASS 0\n");
+    if(empty_checker(*list)!=1){return NULL;}
+    struct string* current_KeyValue = *list; //eviter
+    struct string* current_KeyValue_save = *list; //eviter
+    printf("PASS 1\n");
+     if (strcmp(current_KeyValue->key, given_Key) == 0 &&(*current_KeyValue).next_KeyValue == NULL){
+         free(*list) ;
+         *list =NULL;
+        *list = (struct string*)malloc(sizeof(struct string));
+        (*list)->len = -1;
+        (*list)->type = 'N';
+        (*list)->key = NULL;
+        (*list)->value = NULL;
+        (*list)->next_KeyValue = NULL;
+        return *list;
      }
-    
-    //指向第二项键值，如果可以的话，不然循环又会从第一项开始
-    if(current_KeyValue->next_KeyValue == NULL){return NULL;}
-    current_KeyValue = current_KeyValue->next_KeyValue;//2 and current_KeyValue_save at 1
-    
-    // if the head is not the targetkey
-    while ((*current_KeyValue).next_KeyValue != NULL) {
+    printf("PASS 2\n");
+    if (strcmp(current_KeyValue->key, given_Key) == 0 &&(*current_KeyValue).next_KeyValue != NULL){
         
+        *list =  current_KeyValue->next_KeyValue;
+        free ( current_KeyValue);
+        current_KeyValue=NULL;
+        current_KeyValue_save=NULL;
+
+        printf("delete %s",given_Key);
+        if(GET( given_Key, *list)==NULL){printf("delete successfully\n"); }
+        return  *list;
+     }
+    //incase after delete next key_value is NULL
+    if(current_KeyValue->next_KeyValue == NULL){
+        return NULL;
+    }
+    current_KeyValue = current_KeyValue->next_KeyValue;
+    
+    printf("PASS 3\n");
+    
+    while ((*current_KeyValue).next_KeyValue != NULL) {
+        printf("PASS 3_1\n");
         if(strcmp((*current_KeyValue).key, given_Key) == 0) {
-            (*current_KeyValue_save).next_KeyValue=(*current_KeyValue).next_KeyValue;//
+            printf("PASS 3_2\n");
+            (*current_KeyValue_save).next_KeyValue=(*current_KeyValue).next_KeyValue;
+            printf("PASS 3_3\n");
             free ( current_KeyValue);
             current_KeyValue=NULL;
-            if(GET(given_Key, list)==NULL){printf("recheck : delete successfully\n"); }
             printf("delete %s \n",given_Key);
-            return current_KeyValue_save;
+            if(GET( given_Key, *list)==NULL){printf("delete successfully\n"); }
+            return *list;
         }
-        current_KeyValue_save = current_KeyValue;
+        current_KeyValue_save=current_KeyValue;
         current_KeyValue =  (*current_KeyValue).next_KeyValue;
-
     }
     
-    //last key_value
+// 最后一项
+    printf("PASS 4\n");
     if(strcmp((*current_KeyValue).key, given_Key) == 0) {
-        free (current_KeyValue);
-        current_KeyValue=NULL;
-        //理论上list == NULL的情况不会发生，否则将会与前面的代码矛盾
-        if(GET(given_Key, list)==NULL){printf("recheck : delete successfully\n"); }
+        free ( current_KeyValue);
+        current_KeyValue=NULL; 
+        current_KeyValue_save->next_KeyValue=NULL;
         printf("delete %s\n",given_Key);
-        return list;
+        if(GET( given_Key, *list)==NULL){printf("delete successfully\n"); }
+        return *list;
     }
-    
-    return NULL;
+
+    return NULL; 
 }
 
-void del(int* fd,char* buff, struct string* list){
+   void del(int* fd,char* buff, struct string** list){
     
+       int counter = 1 ; //循环计数器
+       int counter_success = 0 ; //成功计数器
+       
     char* kv = buff +4;
     char* targetKey = strtok(kv, " ");
     targetKey[strcspn(targetKey, "\n")] = '\0';
     
     struct string* str = DEL(targetKey,list);
-    if (str == NULL) {
-        if(send(*fd, "Can not delete key\n", strlen("Can not delete key\n"), 0)==-1) {perror("Response failed\n");}
-    } else {
-        strcat(targetKey,"deleted ! \n");
-        if(send(*fd, targetKey, strlen(targetKey), 0)==-1) {perror("Response failed\n");}
+    
+    if (str != NULL) {
+        printf("NOW CHECKING\n");
+
+        struct string* result = GET(targetKey, *list);
+        if (result == NULL) {
+            printf("recheck: delete successfully\n");
+        } else {
+            printf("recheck: delete failed\n");
+        }
+        
+        counter_success=counter_success+1;
     }
+    
+    targetKey = strtok(NULL, " ");  // 后续调用传入 NULL，继续提取下一个标记
+       
+    while (targetKey != NULL) {
+        targetKey[strcspn(targetKey, "\n")] = '\0';
+        
+        printf("targetKey: %s\n", targetKey);
+        struct string* str = DEL(targetKey,list);
+        printf("DONE\n");
+        if (str != NULL) {
+            printf("NOW CHECKING\n");
+            struct string* result = GET(targetKey, *list);
+            if (result == NULL) {printf("recheck: delete successfully\n");} else {printf("recheck: delete failed\n");}
+            counter_success = counter_success+1;
+        }
+        targetKey = strtok(NULL, " ");
+        counter = counter +1;
+        
+        }
+       
+       if (counter == counter_success) {
+           if(send(*fd, "all key deleted\n", strlen("all key deleted\n"), 0)==-1) {perror("Response failed\n");}
+       } else {
+           if(send(*fd, "ATTENTION !\n", strlen("ATTENTION !\n"), 0)==-1) {perror("Response failed\n");}
+       }
 }
+
+    
+
+
+
+
+
+
+
+
+
+

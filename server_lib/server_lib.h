@@ -2,5 +2,5 @@
 
 void pong(int* fd);
 void other(int* fd);
-
+int touch(const char* filename);
 
