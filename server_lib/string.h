@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+#include <sys/time.h>
 
 
 struct string{ // list of key_value
@@ -22,11 +23,39 @@ struct string{ // list of key_value
     
 };
 
+/*
+struct string_space{
+    
+    struct string* head_str;
+    
+    struct string* private_str;
+    
+    //...
+    
+    struct string* public_str;
+    
+    //struct string* public_str_2;
 
+};
+ 
+ void select_str(struct string_space* space, int* fd, int mode, struct string* str_pub, struct string* str_priv){
+     if(mode == 0){
+         space->head_str = str_priv;
+         send(*fd, "private\n", strlen("private\n"), 0);
+     }else if(mode == 1){
+         space->head_str = str_pub;
+         send(*fd, "public\n", strlen("public\n"), 0);
+     }else{
+         send(*fd, "unknown\n", strlen("unknown\n"), 0);
+     }
+ }
+
+*/
 
 char type_checker(char* value);
 int empty_checker(struct string* list);
 
+int select_str( int* fd, int database);
 void save(int* fd, struct string* list, char* path);
 void set(int* fd,char* buff, struct string* list);
 void get(int* fd,char* buff, struct string* list);

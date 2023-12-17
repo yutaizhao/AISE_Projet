@@ -188,7 +188,6 @@ struct string* DEL(char* given_Key,struct string** list){
     //if delete begin then next NOT exist
     if (strcmp(current_KeyValue->key, given_Key) == 0 &&(*current_KeyValue).next_KeyValue == NULL){
         free(*list) ;
-        *list =NULL;
         *list = (struct string*)malloc(sizeof(struct string));
         (*list)->len = -1;
         (*list)->type = 'N';
@@ -320,9 +319,15 @@ void save(int* fd, struct string* list, char* path){
 
 
 
-
-
-
-
-
+int select_str( int* fd, int database){
+    if(database == 0 || database == 1){
+        char str[strlen("is current string database\n")+4];
+        sprintf(str, "%d is current string database\n", database);
+        send(*fd, str, strlen(str), 0);
+        return database;
+    }else{
+        send(*fd, "unknown, back to default detabase\n", strlen("unknown, back to default detabase\n"), 0);
+        return 0;
+    }
+}
 

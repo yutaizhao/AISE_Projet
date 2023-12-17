@@ -1,9 +1,128 @@
 #include "./server_lib/server_lib.h"
 
+struct string* public_cstring = NULL;
+void *handle_client(void *psocket);
+pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+char* commun_data_path = "data/data.txt";
+
+int main(int argc, char **argv) {
+    if (argc < 2) {
+        (void)fprintf(stderr, "Usage %s [PORT]\n", argv[0]);
+        exit(1);
+    }
+    
+    //preparing server
+    struct addrinfo hints;
+    memset(&hints, 0, sizeof(struct addrinfo));
+    
+    hints.ai_family = AF_UNSPEC; // unspecified ipv4/6 all OK
+    hints.ai_socktype = SOCK_STREAM; // for tcp
+    hints.ai_flags = AI_PASSIVE; //listening
+    
+    struct addrinfo *aret = NULL;
+    //END preparing server
+    
+    int ret = getaddrinfo(NULL, argv[1], &hints, &aret);
+    
+    if (ret < 0) {
+        perror("getaddrinfo");
+        return 1;
+    }
+    
+    struct addrinfo *tmp = NULL;
+    
+    int sock = -1;
+    int success = 0;
+    //setting server
+    for (tmp = aret; tmp != NULL; tmp = tmp->ai_next) {
+        /* Parcours des choix*/
+        sock = socket(tmp->ai_family, tmp->ai_socktype, tmp->ai_protocol); // create a socket
+        
+        if (sock < 0) {
+            continue;
+        }
+        
+        if (bind(sock, tmp->ai_addr, tmp->ai_addrlen)) {
+            continue;
+        }
+        
+        if (listen(sock, 5)) {
+            continue;
+        }
+        
+        /* All OK */
+        success = 1;
+        break;
+    }
+    //END setting server
+    if (!success) {
+        (void)fprintf(stderr, "Failed to create server \n");
+        exit(1);
+    }
+    
+    mkdir("data",0777);
+    
+    FILE *file = fopen("server_config.txt", "wx");
+    
+    if (file != NULL) {
+        perror("config not existed, one is created, please set up, and rerun\n");
+        exit(1);
+    }
+    
+    fclose(file);
+    
+    public_cstring = (struct string*)malloc(sizeof(struct string));
+    public_cstring->len = -1;
+    public_cstring->type = 'N';
+    public_cstring->key = NULL;
+    public_cstring->value = NULL;
+    public_cstring->next_KeyValue =NULL;
+    
+    
+    while (1) {
+        struct sockaddr addr;
+        socklen_t len = sizeof(struct sockaddr);
+        int ret = accept(sock, &addr, &len); //receive demande from client
+        
+        if (ret < 0) {
+            perror("accept");
+            continue;
+        }
+        
+        /* We have a client */
+        int *sockfd = malloc(sizeof(int));
+        
+        if (sockfd == NULL) {
+            perror("malloc");
+            continue;
+        }
+        
+        *sockfd = ret;
+        
+        pthread_t th = 0;
+        pthread_create(&th, NULL, handle_client, sockfd);
+        
+    }
+    
+    free(public_cstring);
+    
+    return 0;
+}
+
+
+
+
+
 
 void *handle_client(void *psocket) {
     int client_fd = *((int *)psocket);
     char* client_id = (char*)malloc(sizeof(char)*12);
+    
+    
+    
+    //Identification
+    
     
     
     FILE *file;
@@ -64,16 +183,22 @@ void *handle_client(void *psocket) {
         return NULL;
     }
     
+    
+    
     //END indentification
-    size_t len_path = strlen("data/data_") + strlen(pass_rece) + strlen(".txt") + 1; // +1 for the null terminator
+    
+    
+    //setting private_path
+    size_t len_path = strlen("data/data_") + strlen(pass_rece) + strlen(".txt") + 1;
+    // +1 for the null terminator
     char data_path[len_path];
     strcat(data_path, "data/data_");
     strcat(data_path, pass_rece);
     strcat(data_path, ".txt");
+
+    //setting private_path
     
-    //end path
     
-    char buff[1024];
     struct string* client_string = (struct string*)malloc(sizeof(struct string));
     client_string->len = -1;
     client_string->type = 'N';
@@ -81,7 +206,13 @@ void *handle_client(void *psocket) {
     client_string->value = NULL;
     client_string->next_KeyValue =NULL;
     
+    
+    int current_string = 0;
+    char buff[1024];
+    
     while(1){
+        
+        
         memset(buff, 0, sizeof(buff));
         ssize_t receiv_client = recv(client_fd, buff, sizeof(buff), 0);
         
@@ -94,9 +225,14 @@ void *handle_client(void *psocket) {
         }
         
         
+        
+        //ping
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
-            //if ping return pong
+            //pong
+            
             pong(&client_fd,client_id);
+            printf("current data base is %d \n",current_string );
+            
         }
         //set
         else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4)
@@ -105,8 +241,20 @@ void *handle_client(void *psocket) {
                 send(client_fd, "Usage: SET [key] [value]\n", strlen("Usage: SET [key] [value]\n"), 0);
             }else{
                 // set str
+                switch (current_string){
+                    case 0:
+                        set(&client_fd, buff, client_string);
+                        break;
+                    case 1:
+                        if (pthread_mutex_trylock(&mutex) == 0){
+                            set(&client_fd, buff, public_cstring);
+                            pthread_mutex_unlock(&mutex);
+                        }else{
+                            send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                        }
+                        break;
+                }
                 
-                set(&client_fd, buff, client_string);
             }
             
         }
@@ -117,7 +265,20 @@ void *handle_client(void *psocket) {
                 send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
             }else{
                 // get str
-                get(&client_fd, buff, client_string);
+                switch (current_string){
+                    case 0:
+                        get(&client_fd, buff, client_string);
+                        break;
+                    case 1:
+                        if (pthread_mutex_trylock(&mutex) == 0){
+                            pthread_mutex_unlock(&mutex);
+                            get(&client_fd, buff, public_cstring);
+                        }else{
+                            send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                        }
+                        
+                        break;
+                }
             }
             
         }
@@ -128,7 +289,20 @@ void *handle_client(void *psocket) {
                 send(client_fd, "Usage: DEL [key]\n", strlen("Usage: DEL [key]\n"), 0);
             }else{
                 // get str
-                del(&client_fd, buff, &client_string);
+                switch (current_string){
+                    case 0:
+                        del(&client_fd, buff, &client_string);
+                        break;
+                    case 1:
+                        if (pthread_mutex_trylock(&mutex) == 0){
+                            del(&client_fd, buff, &public_cstring);
+                            pthread_mutex_unlock(&mutex);
+                        }else{
+                            send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                        }
+                        
+                        break;
+                }
             }
             
         }
@@ -136,8 +310,32 @@ void *handle_client(void *psocket) {
         else if (strncmp(buff, "SAVE", 4) == 0 && strlen(buff) == 5)
         {
             // save
-            save(&client_fd, client_string, data_path);
+            switch (current_string){
+                case 0:
+                    save(&client_fd, client_string, data_path);
+                    break;
+                case 1:
+                    if (pthread_mutex_trylock(&mutex) == 0){
+                        pthread_mutex_unlock(&mutex);
+                        save(&client_fd, public_cstring, commun_data_path);
+                    }else{
+                        send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                    }
+                    break;
+            }
             
+        }
+        //select
+        else if (strncmp(buff, "SELECT", 6) == 0 && strlen(buff) > 7)
+        {
+            if(buff[6] != ' '){
+                send(client_fd, "Usage: SELECT [nb]\n", strlen("Usage: SELECT [nb]\n"), 0);
+            }else{
+                // select
+                int database = atoi(buff+7);
+                current_string = select_str(&client_fd, database);
+                
+            }
         }
         else
         {
@@ -146,107 +344,12 @@ void *handle_client(void *psocket) {
     }
     
     if(client_string!=NULL) {
+        
         free(client_string);
-        client_string = NULL;
         printf("[%s] : client_string is free \n",client_id);
     }
     
     free(client_id);
     close(client_fd);
     return NULL;
-}
-
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        (void)fprintf(stderr, "Usage %s [PORT]\n", argv[0]);
-        exit(1);
-    }
-    
-    //preparing server
-    struct addrinfo hints;
-    memset(&hints, 0, sizeof(struct addrinfo));
-    
-    hints.ai_family = AF_UNSPEC; // unspecified ipv4/6 all OK
-    hints.ai_socktype = SOCK_STREAM; // for tcp
-    hints.ai_flags = AI_PASSIVE; //listening
-    
-    struct addrinfo *aret = NULL;
-    //END preparing server
-    
-    int ret = getaddrinfo(NULL, argv[1], &hints, &aret);
-    
-    if (ret < 0) {
-        perror("getaddrinfo");
-        return 1;
-    }
-    
-    struct addrinfo *tmp = NULL;
-    
-    int sock = -1;
-    int success = 0;
-    //setting server
-    for (tmp = aret; tmp != NULL; tmp = tmp->ai_next) {
-        /* Parcours des choix*/
-        sock = socket(tmp->ai_family, tmp->ai_socktype, tmp->ai_protocol); // create a socket
-        
-        if (sock < 0) {
-            continue;
-        }
-        
-        if (bind(sock, tmp->ai_addr, tmp->ai_addrlen)) {
-            continue;
-        }
-        
-        if (listen(sock, 5)) {
-            continue;
-        }
-        
-        /* All OK */
-        success = 1;
-        break;
-    }
-    //END setting server
-    if (!success) {
-        (void)fprintf(stderr, "Failed to create server \n");
-        exit(1);
-    }
-    
-    mkdir("data",0777);
-    
-    FILE *file = fopen("server_config.txt", "wx");
-
-    if (file != NULL) {
-        perror("config not existed, one is created, please set up, and rerun\n");
-        exit(1);
-    }
-
-    fclose(file);
-    
-    while (1) {
-        struct sockaddr addr;
-        socklen_t len = sizeof(struct sockaddr);
-        int ret = accept(sock, &addr, &len); //receive demande from client
-        
-        if (ret < 0) {
-            perror("accept");
-            continue;
-        }
-        
-        /* We have a client */
-        int *sockfd = malloc(sizeof(int));
-        
-        if (sockfd == NULL) {
-            perror("malloc");
-            continue;
-        }
-        
-        *sockfd = ret;
-        
-        pthread_t th = 0;
-        pthread_create(&th, NULL, handle_client, sockfd);
-        
-    }
-    
-    
-    return 0;
 }
