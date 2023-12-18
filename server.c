@@ -189,12 +189,22 @@ void *handle_client(void *psocket) {
     
     
     //setting private_path
-    size_t len_path = strlen("data/data_") + strlen(pass_rece) + strlen(".txt") + 1;
+    size_t len_path_dir = strlen("data/data_") + strlen(pass_rece) +1;
+    char dir_path[len_path_dir];
+    memset(dir_path, 0, sizeof(dir_path));
+    strcat(dir_path, "data/data_");
+    strcat(dir_path, pass_rece);
+    mkdir(dir_path,0777);
+    printf("%s\n",dir_path);
+    size_t len_path = len_path_dir + strlen("/data_") + strlen(pass_rece) + strlen(".txt") + 1;
     // +1 for the null terminator
     char data_path[len_path];
-    strcat(data_path, "data/data_");
+    memset(data_path, 0, sizeof(data_path));
+    strcat(data_path,dir_path);
+    strcat(data_path, "/data_");
     strcat(data_path, pass_rece);
     strcat(data_path, ".txt");
+    printf("%s\n",data_path);
 
     //setting private_path
     
@@ -316,8 +326,26 @@ void *handle_client(void *psocket) {
                     break;
                 case 1:
                     if (pthread_mutex_trylock(&mutex) == 0){
-                        pthread_mutex_unlock(&mutex);
                         save(&client_fd, public_cstring, commun_data_path);
+                        pthread_mutex_unlock(&mutex);
+                    }else{
+                        send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                    }
+                    break;
+            }
+            
+        }
+        else if (strncmp(buff, "SORT", 4) == 0 && strlen(buff) == 5)
+        {
+            // sort
+            switch (current_string){
+                case 0:
+                    sort(&client_fd, data_path, dir_path);
+                    break;
+                case 1:
+                    if (pthread_mutex_trylock(&mutex) == 0){
+                        sort(&client_fd, commun_data_path, "data");
+                        pthread_mutex_unlock(&mutex);
                     }else{
                         send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
                     }
@@ -344,7 +372,11 @@ void *handle_client(void *psocket) {
     }
     
     if(client_string!=NULL) {
-        
+        while(client_string!=NULL && client_string->next_KeyValue!=NULL){
+            struct string* next = client_string->next_KeyValue;
+            free(client_string);
+            client_string = next;
+        }
         free(client_string);
         printf("[%s] : client_string is free \n",client_id);
     }

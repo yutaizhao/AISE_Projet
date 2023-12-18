@@ -89,7 +89,6 @@ struct string* GET(char* given_Key,struct string* list){
         if(strcmp((*current_KeyValue).key, given_Key) == 0) {
             return current_KeyValue;
         }
-        if((*current_KeyValue).next_KeyValue == NULL){printf("is a NULL; \n");}
         current_KeyValue =  (*current_KeyValue).next_KeyValue;
         
     }
@@ -288,19 +287,37 @@ void del(int* fd,char* buff, struct string** list){
 }
 
 
+
+int select_str( int* fd, int database){
+    if(database == 0 || database == 1){
+        char str[strlen("is current string database\n")+4];
+        sprintf(str, "%d is current string database\n", database);
+        send(*fd, str, strlen(str), 0);
+        return database;
+    }else{
+        send(*fd, "unknown, back to default detabase\n", strlen("unknown, back to default detabase\n"), 0);
+        return 0;
+    }
+}
+
+
 void save(int* fd, struct string* list, char* path){
     
-    FILE *file;
-    file = fopen(path, "w");
-    if (file == NULL) {
-        perror("open file failed\n");
+    if(strncmp("data",path,4)!=0){
         if(send(*fd, "Failed to SAVE\n", strlen("Failed to SAVE\n"), 0)==-1) {perror("Response failed\n");}
         return ;
     }
     
     if(empty_checker(list)!=1){
         if(send(*fd, "No data to SAVE\n", strlen("No data to SAVE\n"), 0)==-1) {perror("Response failed\n");}
-        fclose(file);
+        return ;
+    }
+    
+    FILE *file;
+    file = fopen(path, "w");
+    if (file == NULL) {
+        perror("open file failed\n");
+        if(send(*fd, "Failed to SAVE\n", strlen("Failed to SAVE\n"), 0)==-1) {perror("Response failed\n");}
         return ;
     }
     
@@ -318,16 +335,135 @@ void save(int* fd, struct string* list, char* path){
 }
 
 
-
-int select_str( int* fd, int database){
-    if(database == 0 || database == 1){
-        char str[strlen("is current string database\n")+4];
-        sprintf(str, "%d is current string database\n", database);
-        send(*fd, str, strlen(str), 0);
-        return database;
-    }else{
-        send(*fd, "unknown, back to default detabase\n", strlen("unknown, back to default detabase\n"), 0);
-        return 0;
+void sort(int* fd, char* data_path, char* dir_path){ // get from
+    
+    if(strncmp("data",data_path,4)!=0){
+        if(send(*fd, "Failed to SORT\n", strlen("Failed to SORT\n"), 0)==-1) {perror("Response failed\n");}
+        return ;}
+    
+    FILE *file_data;
+    file_data = fopen(data_path, "r");
+    if (file_data == NULL) {
+        perror("open file failed\n");
+        if(send(*fd, "Failed to SORT\n", strlen("Failed to SORT\n"), 0)==-1) {perror("Response failed\n");}
+        return ;
     }
+    
+    char* tab[27] = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","u","p","r","s","t","u","v","w","x","y","z","else"};
+    
+    
+    
+    
+    
+    // re-initialisation
+    
+    
+    size_t len = strlen(dir_path) + 7;
+    char sort_path[len];
+    memset(sort_path, 0, sizeof(sort_path));
+    strcat(sort_path,dir_path);
+    strcat(sort_path,"/");
+    strcat(sort_path,tab[26]);
+    
+    FILE *file;
+    file = fopen( sort_path, "w");
+    
+    if (file == NULL) {
+        perror("open file failed\n");
+        if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
+        return ;
+    }
+    fclose(file);
+    
+    for(int i=0; i<26; ++i){
+        
+        size_t len = strlen(dir_path) + 3;
+        char sort_path[len];
+        memset(sort_path, 0, sizeof(sort_path));
+        strcat(sort_path,dir_path);
+        strcat(sort_path,"/");
+        strcat(sort_path,tab[i]);
+        
+        FILE *file;
+        file = fopen( sort_path, "w");
+        
+        if (file == NULL) {
+            perror("open file failed\n");
+            if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
+            return ;
+        }
+        fclose(file);
+    }
+    
+    
+    
+    // re-initialisation
+    
+    
+    
+    
+    
+    
+    //line from origin filee
+    char line[1024];
+    memset(line, 0, sizeof(line));
+    
+    while (fgets(line,sizeof(line),file_data) != NULL) {
+        
+        int cnt = 0;
+        
+        char *key = strtok(line, " ");
+        char *value = strtok(NULL, " ");
+        value[strcspn(value, "\n")] = '\0';
+        
+        
+        for(int i=0; i<26; ++i){
+            
+            if(strncasecmp(key, tab[i],1) == 0) {
+                
+                size_t len = strlen(dir_path) + 3;
+                char sort_path[len];
+                memset(sort_path, 0, sizeof(sort_path));
+                strcat(sort_path,dir_path);
+                strcat(sort_path,"/");
+                strcat(sort_path,tab[i]);
+                
+                FILE *file;
+                file = fopen( sort_path, "a");
+                
+                if (file == NULL) {
+                    perror("open file failed\n");
+                    if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
+                    return ;
+                }
+                fprintf(file, "%s %s\n", key, value);
+                fclose(file);
+                ++cnt;
+                break;
+                
+            }
+        }
+        if(cnt==0){
+                size_t len = strlen(dir_path) + 7;
+                char sort_path[len];
+                memset(sort_path, 0, sizeof(sort_path));
+                strcat(sort_path,dir_path);
+                strcat(sort_path,"/");
+                strcat(sort_path,tab[26]);
+                FILE *file;
+                file = fopen( sort_path, "a");
+                
+                if (file == NULL) {
+                    perror("open file failed\n");
+                    if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
+                    return ;
+                }
+                fprintf(file,"%s %s\n", key, value);
+                fclose(file);
+            
+        }
+        
+    }
+    fclose(file_data);
+    if(send(*fd, "DONE SORT\n", strlen("DONE SORT\n"), 0)==-1) {perror("Response failed\n");}
 }
-
