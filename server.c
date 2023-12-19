@@ -1,17 +1,11 @@
 #include "./server_lib/server_lib.h"
-
 struct string* public_cstring = NULL;
 void *handle_client(void *psocket);
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
 
 char* commun_data_path = "data/data.txt";
 
-int main(int argc, char **argv) {
-    if (argc < 2) {
-        (void)fprintf(stderr, "Usage %s [PORT]\n", argv[0]);
-        exit(1);
-    }
-    
+void start_server(char* port) {
     //preparing server
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -23,11 +17,11 @@ int main(int argc, char **argv) {
     struct addrinfo *aret = NULL;
     //END preparing server
     
-    int ret = getaddrinfo(NULL, argv[1], &hints, &aret);
+    int ret = getaddrinfo(NULL, port, &hints, &aret);
     
     if (ret < 0) {
         perror("getaddrinfo");
-        return 1;
+        return ;
     }
     
     struct addrinfo *tmp = NULL;
@@ -60,26 +54,9 @@ int main(int argc, char **argv) {
         (void)fprintf(stderr, "Failed to create server \n");
         exit(1);
     }
-    
-    mkdir("data",0777);
-    
-    FILE *file = fopen("server_config.txt", "wx");
-    
-    if (file != NULL) {
-        perror("config not existed, one is created, please set up, and rerun\n");
-        exit(1);
-    }
-    
-    fclose(file);
-    
-    public_cstring = (struct string*)malloc(sizeof(struct string));
-    public_cstring->len = -1;
-    public_cstring->type = 'N';
-    public_cstring->key = NULL;
-    public_cstring->value = NULL;
-    public_cstring->next_KeyValue =NULL;
-    
-    
+
+    printf("Server listening on port %s...\n", port);
+
     while (1) {
         struct sockaddr addr;
         socklen_t len = sizeof(struct sockaddr);
@@ -104,15 +81,54 @@ int main(int argc, char **argv) {
         pthread_create(&th, NULL, handle_client, sockfd);
         
     }
-    
-    free(public_cstring);
-    
-    return 0;
 }
 
+int main(int argc, char **argv) {
+    
+    if (argc < 3) {
+        (void)fprintf(stderr, "Usage %s [PORT1] [PORT2]\n", argv[0]);
+        exit(1);
+    }
 
+    // 启动两个服务器，分别监听不同的端口
+    pthread_t thread1, thread2;
+    
+    mkdir("data",0777);
+    
+    FILE *file = fopen("server_config.txt", "wx");
+    
+    if (file != NULL) {
+        perror("config not existed, one is created, please set up, and rerun\n");
+        exit(1);
+    }
+    
+    fclose(file);
+    
+    public_cstring = (struct string*)malloc(sizeof(struct string));
+    public_cstring->len = -1;
+    public_cstring->type = 'N';
+    public_cstring->key = NULL;
+    public_cstring->value = NULL;
+    public_cstring->next_KeyValue =NULL;
 
+    if (pthread_create(&thread1, NULL, (void *)start_server, (void *)argv[1]) != 0) {
+        perror("Error creating thread for server 1");
+        exit(EXIT_FAILURE);
+    }
 
+    if (pthread_create(&thread2, NULL, (void *)start_server, (void *)argv[2]) != 0) {
+        perror("Error creating thread for server 2");
+        exit(EXIT_FAILURE);
+    }
+
+    // 主线程等待子线程结束
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+    
+    free(public_cstring);
+
+    return 0;
+}
 
 
 void *handle_client(void *psocket) {
