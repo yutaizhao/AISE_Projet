@@ -131,7 +131,7 @@ int main(int argc, char ** argv)
     
     fclose(file);
     
-    
+    pass_buff[strcspn(pass_buff, "\n")] = '\0';
 
     char buff[1024];
     char rece[1024];
@@ -159,7 +159,7 @@ int main(int argc, char ** argv)
                 if (receiv_server > 0) {
                     printf("[server] : %s", rece);
                 } else if (receiv_server == 0) {
-                    printf("[server] : has been disconnected\n");
+                    printf("[server] : disconnected\n");
                     break;
                 } else {
                     perror("recv");

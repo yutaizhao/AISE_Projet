@@ -35,6 +35,27 @@ char type_checker(char* value){
     return 's';
 }
 
+int check_FETCH_format(char* buff){
+    if(buff[5]!=' '){
+        return 0;
+    }
+    int cnt = 0;
+    char cpybuff[1024];
+    strcpy(cpybuff, buff); //neceessaire sinon buff sera modifie
+    
+    char* str = strtok(cpybuff, " ");
+    while(str != NULL){
+        str = strtok(NULL, " ");
+        cnt = cnt +1 ;
+    }
+    
+    if(cnt != 2){
+        return 0;
+    }
+    
+    return 1;
+}
+
 
 
 int check_SET_format(char* buff){
@@ -295,18 +316,13 @@ int select_str( int* fd, int database){
         send(*fd, str, strlen(str), 0);
         return database;
     }else{
-        send(*fd, "unknown, back to default detabase\n", strlen("unknown, back to default detabase\n"), 0);
-        return 0;
+        send(*fd, "unknown, back to default detabase 1\n", strlen("unknown, back to default detabase 1\n"), 0);
+        return 1;
     }
 }
 
 
 void save(int* fd, struct string* list, char* path){
-    
-    if(strncmp("data",path,4)!=0){
-        if(send(*fd, "Failed to SAVE\n", strlen("Failed to SAVE\n"), 0)==-1) {perror("Response failed\n");}
-        return ;
-    }
     
     if(empty_checker(list)!=1){
         if(send(*fd, "No data to SAVE\n", strlen("No data to SAVE\n"), 0)==-1) {perror("Response failed\n");}
@@ -335,135 +351,214 @@ void save(int* fd, struct string* list, char* path){
 }
 
 
-void sort(int* fd, char* data_path, char* dir_path){ // get from
+
+
+// function external sorting
+void externalSort(int* fd, const char *dir_path, const char *id) {
     
-    if(strncmp("data",data_path,4)!=0){
-        if(send(*fd, "Failed to SORT\n", strlen("Failed to SORT\n"), 0)==-1) {perror("Response failed\n");}
-        return ;}
+    size_t len_path_file = snprintf(NULL, 0, "%s/data_%s", dir_path, id) + 1;
+    char file_path[len_path_file];
+    snprintf(file_path, len_path_file, "%s/data_%s", dir_path, id);
     
-    FILE *file_data;
-    file_data = fopen(data_path, "r");
-    if (file_data == NULL) {
-        perror("open file failed\n");
-        if(send(*fd, "Failed to SORT\n", strlen("Failed to SORT\n"), 0)==-1) {perror("Response failed\n");}
-        return ;
-    }
+    size_t len_path_merge_file = snprintf(NULL, 0, "%s/data_merge_%s", dir_path, id) + 1;
+    char merge_file_path[len_path_merge_file];
+    snprintf(merge_file_path, len_path_merge_file, "%s/data_merge_%s", dir_path, id);
     
-    char* tab[27] = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","u","p","r","s","t","u","v","w","x","y","z","else"};
-    
-    
-    
-    
-    
-    // re-initialisation
-    
-    
-    size_t len = strlen(dir_path) + 7;
-    char sort_path[len];
-    memset(sort_path, 0, sizeof(sort_path));
-    strcat(sort_path,dir_path);
-    strcat(sort_path,"/");
-    strcat(sort_path,tab[26]);
-    
-    FILE *file;
-    file = fopen( sort_path, "w");
-    
-    if (file == NULL) {
-        perror("open file failed\n");
+    FILE *input_file = fopen(file_path, "r");
+    if (input_file == NULL) {
+        printf("open file failed : %s \n", file_path);
         if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
         return ;
     }
-    fclose(file);
     
-    for(int i=0; i<26; ++i){
+    FILE *sort_files[27];
+    char* tab[27] = {"a","b","c","d","e","f","g","h","i","j","k","l","m","n","o","u","p","r","s","t","u","v","w","x","y","z","～"};
+    
+    //
+    for (int i = 0; i < 27; i++) {
         
-        size_t len = strlen(dir_path) + 3;
-        char sort_path[len];
-        memset(sort_path, 0, sizeof(sort_path));
-        strcat(sort_path,dir_path);
-        strcat(sort_path,"/");
-        strcat(sort_path,tab[i]);
+        size_t lem_sort_files = snprintf(NULL, 0, "%s/%s", dir_path, tab[i]) + 1;
+        char sort_files_path[lem_sort_files];
+        snprintf(sort_files_path, lem_sort_files, "%s/%s",dir_path, tab[i]);
         
-        FILE *file;
-        file = fopen( sort_path, "w");
-        
-        if (file == NULL) {
+        sort_files[i] = fopen(sort_files_path, "w");
+        if (sort_files[i]  == NULL) {
             perror("open file failed\n");
             if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
             return ;
         }
-        fclose(file);
     }
     
-    
-    
-    // re-initialisation
-    
-    
-    
-    
-    
-    
-    //line from origin filee
+    // read each line from the input file
     char line[1024];
     memset(line, 0, sizeof(line));
-    
-    while (fgets(line,sizeof(line),file_data) != NULL) {
+    while (fgets(line, sizeof(line), input_file) != NULL) {
+        char first_char = tolower(line[0]);  //if majuscule conveert to minuscule
         
-        int cnt = 0;
-        
-        char *key = strtok(line, " ");
-        char *value = strtok(NULL, " ");
-        value[strcspn(value, "\n")] = '\0';
-        
-        
-        for(int i=0; i<26; ++i){
-            
-            if(strncasecmp(key, tab[i],1) == 0) {
-                
-                size_t len = strlen(dir_path) + 3;
-                char sort_path[len];
-                memset(sort_path, 0, sizeof(sort_path));
-                strcat(sort_path,dir_path);
-                strcat(sort_path,"/");
-                strcat(sort_path,tab[i]);
-                
-                FILE *file;
-                file = fopen( sort_path, "a");
-                
-                if (file == NULL) {
-                    perror("open file failed\n");
-                    if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
-                    return ;
-                }
-                fprintf(file, "%s %s\n", key, value);
-                fclose(file);
-                ++cnt;
-                break;
-                
-            }
-        }
-        if(cnt==0){
-                size_t len = strlen(dir_path) + 7;
-                char sort_path[len];
-                memset(sort_path, 0, sizeof(sort_path));
-                strcat(sort_path,dir_path);
-                strcat(sort_path,"/");
-                strcat(sort_path,tab[26]);
-                FILE *file;
-                file = fopen( sort_path, "a");
-                
-                if (file == NULL) {
-                    perror("open file failed\n");
-                    if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
-                    return ;
-                }
-                fprintf(file,"%s %s\n", key, value);
-                fclose(file);
-            
+        // find the corresponding file based on the first char
+        int file_index;
+        if ('a' <= first_char && first_char <= 'z' ) {
+            file_index = first_char - 'a';
+        } else {
+            file_index = 26; // '~'
         }
         
+        // write the line to the corresponding output file
+        fprintf(sort_files[file_index], "%s", line);
     }
-    fclose(file_data);
+    
+    // close all input/output files
+    fclose(input_file);
+    for (int i = 0; i < 27; i++) {
+        fclose(sort_files[i]);
+    }
+    
+    memset(line, 0, sizeof(line));
+    // merge 27 files back into one file
+    FILE *merge_file = fopen(merge_file_path, "w");
+    if (merge_file == NULL) {
+        perror("open file failed\n");
+        if(send(*fd, "Failed to LOAD\n", strlen("Failed to LOAD\n"), 0)==-1) {perror("Response failed\n");}
+        return ;
+    }
+    
+    for (int i = 0; i < 27; ++i) {
+        size_t lem_sort_files = snprintf(NULL, 0, "%s/%s", dir_path,tab[i]) + 1;
+        char sort_files_path[lem_sort_files];
+        snprintf(sort_files_path, lem_sort_files, "%s/%s",dir_path, tab[i]);
+        
+        sort_files[i] = fopen(sort_files_path, "r");
+        
+        while (fgets(line, sizeof(line), sort_files[i]) != NULL) {
+            fprintf(merge_file, "%s", line);
+        }
+        fclose(sort_files[i]);
+    }
+    
+    fclose(merge_file);
     if(send(*fd, "DONE SORT\n", strlen("DONE SORT\n"), 0)==-1) {perror("Response failed\n");}
 }
+
+
+void externalGet(int* fd, char* buff, const char *dir_path, const char *id){
+    
+    // key
+    char *targetKey = buff+6;
+    targetKey[strcspn(targetKey, "\n")] = '\0';
+    printf("target : %s \n",targetKey);
+    
+    char first_char = tolower(targetKey[0]);
+    
+    size_t len_path_file = snprintf(NULL, 0, "%s/%c", dir_path, first_char) + 1;
+    char file_path[len_path_file];
+    snprintf(file_path, len_path_file, "%s/%c", dir_path, first_char);
+    FILE *sort = fopen(file_path, "r");
+    
+    if (sort == NULL) {
+        
+        printf("Sorted file not existed: %s \n", file_path);
+        printf("Slow mode \n");
+        
+        size_t len_raw = snprintf(NULL, 0, "%s/data_%s", dir_path, id) + 1;
+        char path_raw[len_raw];
+        snprintf(path_raw, len_raw, "%s/data_%s", dir_path, id);
+        FILE *raw = fopen(path_raw, "r");
+        if (raw == NULL) {
+            perror("No data saved\n");
+            if(send(*fd, "No data saved\n", strlen("No data saved\n"), 0)==-1) {perror("Response failed\n");}
+            return ;
+        }
+        
+        
+        //line from origin filee
+        char line[1024];
+        memset(line, 0, sizeof(line));
+        char* res = NULL;
+        
+        while (fgets(line,sizeof(line),raw) != NULL) {
+            //old key_value
+            char *key = strtok(line, " ");
+            char *value = strtok(NULL, " ");
+            
+            if(strcmp(key, targetKey) == 0) {
+                res = strdup(value);
+                break;
+            }
+        }
+        
+        if(res == NULL){
+            printf("Key not found\n");
+            if(send(*fd, "Key not found\n", strlen("Key not found\n"), 0)==-1) {perror("Response failed\n");}
+        }else{
+            printf("res : %s",res);
+            if(send(*fd, res, strlen(res), 0)==-1) {perror("Response failed\n");}
+        }
+        
+        
+    }else{
+        
+        //line from origin filee
+        char line[1024];
+        memset(line, 0, sizeof(line));
+        char* res = NULL;
+        
+        while (fgets(line,sizeof(line),sort) != NULL) {
+            //old key_value
+            char *key = strtok(line, " ");
+            char *value = strtok(NULL, " ");
+            
+            if(strcmp(key, targetKey) == 0) {
+                res = strdup(value);
+                break;
+            }
+        }
+        fclose(sort);
+        
+        if(res == NULL){
+            printf("Key not found in sorted files\n");
+            printf("Try to find in raw file\n");
+            
+            size_t len_raw = snprintf(NULL, 0, "%s/data_%s", dir_path, id) + 1;
+            char path_raw[len_raw];
+            snprintf(path_raw, len_raw, "%s/data_%s", dir_path, id);
+            FILE *raw = fopen(path_raw, "r");
+            if (raw == NULL) {
+                perror("No data saved\n");
+                if(send(*fd, "No data saved\n", strlen("No data saved\n"), 0)==-1) {perror("Response failed\n");}
+                return ;
+            }
+            
+            
+            //line from origin filee
+            char line[1024];
+            memset(line, 0, sizeof(line));
+            char* res = NULL;
+            
+            while (fgets(line,sizeof(line),raw) != NULL) {
+                //old key_value
+                char *key = strtok(line, " ");
+                char *value = strtok(NULL, " ");
+                
+                if(strcmp(key, targetKey) == 0) {
+                    res = strdup(value);
+                    break;
+                }
+            }
+            
+            if(res == NULL){
+                printf("Key sill not found\n");
+                if(send(*fd, "Key not found\n", strlen("Key not found\n"), 0)==-1) {perror("Response failed\n");}
+            }else{
+                printf("Key found ! ATTENTION : found in raw file not in sorted files\n");
+                printf("res : %s",res);
+                if(send(*fd, res, strlen(res), 0)==-1) {perror("Response failed\n");}
+            }
+            
+        }else{
+            printf("value : %s",res);
+            if(send(*fd, res, strlen(res), 0)==-1) {perror("Response failed\n");}
+        }
+    }
+}
+    
+    

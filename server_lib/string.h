@@ -9,12 +9,13 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <sys/time.h>
+#include <ctype.h> 
 
 
 struct string{ // list of key_value
     
-    int len;
-    char type; //s = string, int = d, float =f;
+    int len; //without \0
+    char type; //s = string, int = d, float =f, non = N
     char* key;
     char* value;
     
@@ -23,22 +24,33 @@ struct string{ // list of key_value
     
 };
 
-
-
-char type_checker(char* value);
-int empty_checker(struct string* list);
-
-int select_str( int* fd, int database);
-void sort(int* fd, char* data_path, char* dir_path);
-void save(int* fd, struct string* list, char* path);
+/*
+ COMMANDS
+*/
+int select_str( int* fd, int database); //SELECT
 void set(int* fd,char* buff, struct string* list);
 void get(int* fd,char* buff, struct string* list);
 void del(int* fd,char* buff, struct string** list);
+void save(int* fd, struct string* list, char* path); //SAVE
+void externalSort(int* fd, const char *dir_path, const char *id); //SORT
+void externalGet(int* fd, char* buff, const char *dir_path, const char *id); //FETCH
+//if have time implement get type and get len
+
+
+/*
+ USEFULL functions
+*/
 struct string* SET(char* given_KeyValue, struct string* list);
 struct string* GET(char* given_Key, struct string* list);
 struct string* DEL(char* given_Key,struct string** list);
 int check_SET_format(char* buff);
 int check_GET_format(char* buff);
+int check_FETCH_format(char* buff);
+char type_checker(char* value);
+int empty_checker(struct string* list);
+
+
+
 
 
 /*

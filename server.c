@@ -1,11 +1,63 @@
 #include "./server_lib/server_lib.h"
-struct string* public_cstring = NULL;
+
 void *handle_client(void *psocket);
+void create_server(char* port);
+
+struct string* public_cstring = NULL;
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+char* commun_data_path = "./data/public/data_public";
+char* commun_dir_path = "./data/public";
 
-char* commun_data_path = "data/data.txt";
+int main(int argc, char **argv) {
+    
+    if (argc < 3) {
+        (void)fprintf(stderr, "Usage %s [PORT1] [PORT2]\n", argv[0]);
+        exit(1);
+    }
 
-void start_server(char* port) {
+    //
+    pthread_t thread1, thread2;
+    
+    mkdir("data",0777);
+    mkdir("data/public",0777);
+    
+    FILE *file = fopen("server_config.txt", "wx");
+    
+    if (file != NULL) {
+        perror("Config not existed, one is created, please set up, and rerun\n");
+        exit(1);
+    }
+    
+    fclose(file);
+    
+    public_cstring = (struct string*)malloc(sizeof(struct string));
+    public_cstring->len = -1;
+    public_cstring->type = 'N';
+    public_cstring->key = NULL;
+    public_cstring->value = NULL;
+    public_cstring->next_KeyValue =NULL;
+
+    if (pthread_create(&thread1, NULL, (void *)create_server, argv[1]) != 0) { // otherwaise got warning
+        perror("Error creating server 1");
+        exit(1);
+    }
+
+    if (pthread_create(&thread2, NULL, (void *)create_server, argv[2]) != 0) {
+        perror("Error creating server 2");
+        exit(1);
+    }
+
+    // 主线程等待子线程结束
+    pthread_join(thread1, NULL);
+    pthread_join(thread2, NULL);
+    
+    free(public_cstring);
+
+    return 0;
+}
+
+//from tp
+void create_server(char* port) {
     //preparing server
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -21,7 +73,7 @@ void start_server(char* port) {
     
     if (ret < 0) {
         perror("getaddrinfo");
-        return ;
+        exit(1) ;
     }
     
     struct addrinfo *tmp = NULL;
@@ -83,145 +135,33 @@ void start_server(char* port) {
     }
 }
 
-int main(int argc, char **argv) {
-    
-    if (argc < 3) {
-        (void)fprintf(stderr, "Usage %s [PORT1] [PORT2]\n", argv[0]);
-        exit(1);
-    }
-
-    // 启动两个服务器，分别监听不同的端口
-    pthread_t thread1, thread2;
-    
-    mkdir("data",0777);
-    
-    FILE *file = fopen("server_config.txt", "wx");
-    
-    if (file != NULL) {
-        perror("config not existed, one is created, please set up, and rerun\n");
-        exit(1);
-    }
-    
-    fclose(file);
-    
-    public_cstring = (struct string*)malloc(sizeof(struct string));
-    public_cstring->len = -1;
-    public_cstring->type = 'N';
-    public_cstring->key = NULL;
-    public_cstring->value = NULL;
-    public_cstring->next_KeyValue =NULL;
-
-    if (pthread_create(&thread1, NULL, (void *)start_server, (void *)argv[1]) != 0) {
-        perror("Error creating thread for server 1");
-        exit(EXIT_FAILURE);
-    }
-
-    if (pthread_create(&thread2, NULL, (void *)start_server, (void *)argv[2]) != 0) {
-        perror("Error creating thread for server 2");
-        exit(EXIT_FAILURE);
-    }
-
-    // 主线程等待子线程结束
-    pthread_join(thread1, NULL);
-    pthread_join(thread2, NULL);
-    
-    free(public_cstring);
-
-    return 0;
-}
 
 
 void *handle_client(void *psocket) {
+    
     int client_fd = *((int *)psocket);
     char* client_id = (char*)malloc(sizeof(char)*12);
     
     
-    
-    //Identification
-    
-    
-    
-    FILE *file;
-    file = fopen("server_config.txt", "r");
-    if (file == NULL) {
-        perror("open config failed\n");
-        close(client_fd);
+    int res = identification(&client_fd, client_id);
+    if(res != 2){
         free(client_id);
+        close(client_fd);
         return NULL;
     }
-    
-    int login = 0;
-    char pass_rece[12];
-    
-    while(login == 0){
-        memset(pass_rece, 0, sizeof(pass_rece));
-        ssize_t client_indentity = recv(client_fd, pass_rece, sizeof(pass_rece), 0);
-        
-        if (client_indentity == 0) {
-            printf("a client disconnected\n" );
-            ssize_t client_quit = send(client_fd, pass_rece, client_indentity, 0);
-            //清空缓存区
-            fclose(file);
-            close(client_fd);
-            free(client_id);
-            return NULL ;
-        } else if (client_indentity > 0) {
-            login = 1;
-        }
-    }
-    
-    //line from origin filee
-    char line[12];
-    memset(line, 0, sizeof(line));
-    
-    // indentity
-    pass_rece[strcspn(pass_rece, "\n")] = '\0';
-    
-    while (fgets(line,sizeof(line),file) != NULL) {
-        line[strcspn(line, "\n")] = '\0';
-        
-        if(strcmp(line, pass_rece) == 0) {
-            printf("a client tried to login : %s \n",line);
-            strcpy(client_id,line);
-            login = 2 ;
-            break;
-        }
-    }
-    
-    if(login == 2){
-        send(client_fd, "valid\n", strlen("valid\n"), 0);
-        fclose(file);
-    }else{
-        send(client_fd, "unvalid\n", strlen("unvalid\n"), 0);
-        fclose(file);
-        close(client_fd);
-        free(client_id);
-        return NULL;
-    }
-    
-    
-    
-    //END indentification
     
     
     //setting private_path
-    size_t len_path_dir = strlen("data/data_") + strlen(pass_rece) +1;
+    size_t len_path_dir = snprintf(NULL, 0, "data/data_%s", client_id) + 1;
     char dir_path[len_path_dir];
-    memset(dir_path, 0, sizeof(dir_path));
-    strcat(dir_path, "data/data_");
-    strcat(dir_path, pass_rece);
+    snprintf(dir_path, len_path_dir, "data/data_%s", client_id);
     mkdir(dir_path,0777);
     printf("%s\n",dir_path);
-    size_t len_path = len_path_dir + strlen("/data_") + strlen(pass_rece) + strlen(".txt") + 1;
-    // +1 for the null terminator
-    char data_path[len_path];
-    memset(data_path, 0, sizeof(data_path));
-    strcat(data_path,dir_path);
-    strcat(data_path, "/data_");
-    strcat(data_path, pass_rece);
-    strcat(data_path, ".txt");
+    
+    size_t len_path_file = snprintf(NULL, 0, "data/data_%s/data_%s", client_id,client_id) + 1;
+    char data_path[len_path_file];
+    snprintf(data_path, len_path_file, "data/data_%s/data_%s", client_id,client_id);
     printf("%s\n",data_path);
-
     //setting private_path
     
     
@@ -233,7 +173,7 @@ void *handle_client(void *psocket) {
     client_string->next_KeyValue =NULL;
     
     
-    int current_string = 0;
+    int current_string = 1;
     char buff[1024];
     
     while(1){
@@ -333,7 +273,7 @@ void *handle_client(void *psocket) {
             
         }
         //save
-        else if (strncmp(buff, "SAVE", 4) == 0 && strlen(buff) == 5)
+        else if (strcmp(buff, "SAVE\n") == 0 )
         {
             // save
             switch (current_string){
@@ -351,21 +291,43 @@ void *handle_client(void *psocket) {
             }
             
         }
-        else if (strncmp(buff, "SORT", 4) == 0 && strlen(buff) == 5)
+        //sort ext
+        else if (strcmp(buff, "SORT\n") == 0)
         {
-            // sort
             switch (current_string){
                 case 0:
-                    sort(&client_fd, data_path, dir_path);
+                    externalSort(&client_fd, dir_path, client_id);
                     break;
                 case 1:
                     if (pthread_mutex_trylock(&mutex) == 0){
-                        sort(&client_fd, commun_data_path, "data");
+                        externalSort(&client_fd, commun_dir_path , "public");
                         pthread_mutex_unlock(&mutex);
                     }else{
                         send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
                     }
                     break;
+            }
+            
+        }
+        // get ext
+        else if (strncmp(buff, "FETCH", 5) == 0 && strlen(buff) > 6)
+        {
+            if(check_FETCH_format(buff)==0){
+                send(client_fd, "Usage: FETCH [key]\n", strlen("Usage: FETCH [key]\n"), 0);
+            }else{
+                switch (current_string){
+                    case 0:
+                        externalGet(&client_fd, buff, dir_path, client_id);
+                        break;
+                    case 1:
+                        if (pthread_mutex_trylock(&mutex) == 0){
+                            pthread_mutex_unlock(&mutex);
+                            externalGet(&client_fd, buff, commun_dir_path , "public");
+                        }else{
+                            send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                        }
+                        break;
+                }
             }
             
         }
