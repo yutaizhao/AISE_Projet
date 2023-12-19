@@ -35,6 +35,8 @@ char type_checker(char* value){
     return 's';
 }
 
+
+
 int check_FETCH_format(char* buff){
     if(buff[5]!=' '){
         return 0;
@@ -56,8 +58,6 @@ int check_FETCH_format(char* buff){
     return 1;
 }
 
-
-
 int check_SET_format(char* buff){
     if(buff[3]!=' '){
         return 0;
@@ -68,7 +68,7 @@ int check_SET_format(char* buff){
     strcpy(cpybuff, buff);
     
     char* str = strtok(cpybuff, " ");
-    while(str != NULL){
+    while(str != NULL && strcmp(str,"\n")!= 0){
         str = strtok(NULL, " ");
         cnt = cnt +1 ;
     }
@@ -100,6 +100,8 @@ int check_GET_format(char* buff){
     return 1;
 }
 
+
+
 struct string* GET(char* given_Key,struct string* list){
     
     if(empty_checker(list)!=1){return NULL;}
@@ -115,9 +117,6 @@ struct string* GET(char* given_Key,struct string* list){
     }
     return NULL;
 }
-
-
-
 
 
 
@@ -188,6 +187,7 @@ struct string* SET(char* given_KeyValue, struct string* list){
         }
     }
 }
+
 
 
 void set(int* fd,char* buff,struct string* list){
@@ -281,6 +281,8 @@ struct string* DEL(char* given_Key,struct string** list){
     return NULL;
 }
 
+
+
 void del(int* fd,char* buff, struct string** list){
     
     int counter = 0 ; //numbre of target keys
@@ -296,7 +298,7 @@ void del(int* fd,char* buff, struct string** list){
         //Delete
         struct string* str = DEL(targetKey,list);
         
-       
+        
         if (str != NULL) {
             
             //Using GET to recheck the key is really deleted or not, can
@@ -323,6 +325,7 @@ void del(int* fd,char* buff, struct string** list){
 }
 
 
+
 void mget(int* fd,char* buff, struct string* list){
     char* p = buff +5;
     int n=1;
@@ -342,7 +345,7 @@ void mget(int* fd,char* buff, struct string* list){
     if (n>5) {
         if(send(*fd, "Error,too much keys\n", strlen("Error,too much keys\n"), 0)==-1) {perror("Response failed\n");}
         return ;
-        }
+    }
     
     
     int MAX_MESSAGE_LENGTH=1024*10;
@@ -360,22 +363,22 @@ void mget(int* fd,char* buff, struct string* list){
         if (str != NULL) {
             counter_success = counter_success+1;
             char* ms=strdup((*str).key);
-            strcat(ms,",");
+            strcat(ms," = ");
             strcat(ms,(*str).value);
             strncat(messagelist, ms, MAX_MESSAGE_LENGTH - strlen(messagelist) - 1);
             free(ms);
-            strncat(messagelist, "  ", MAX_MESSAGE_LENGTH - strlen(messagelist) - 1);
+            strncat(messagelist, "\n", MAX_MESSAGE_LENGTH - strlen(messagelist) - 1);
         }
-         else {
+        else {
             strcat(messagelist,targetKey);
             strcat(messagelist," ");
-            strncat(messagelist, "  doesn't exist.  ", MAX_MESSAGE_LENGTH - strlen(messagelist) - 1);
-         }
-            
-            targetKey = strtok(NULL, " ");
-            counter = counter +1;
+            strncat(messagelist, "doesn't exist\n", MAX_MESSAGE_LENGTH - strlen(messagelist) - 1);
+        }
+        
+        targetKey = strtok(NULL, " ");
+        counter = counter +1;
     }
-
+    
     if (counter_success == 0){
         if(send(*fd, "No key get\n", strlen("No key get\n"), 0)==-1) {perror("Response failed\n");}
     }else if (counter == counter_success) {
@@ -386,6 +389,7 @@ void mget(int* fd,char* buff, struct string* list){
         if(send(*fd, messagelist, strlen(messagelist), 0)==-1) {perror("Response failed\n");}
     }
 }
+
 
 
 struct string* INCR(struct string* given_string){
@@ -402,7 +406,8 @@ struct string* INCR(struct string* given_string){
     }
 }
 
-    
+
+
 void incr(int* fd,char* buff,struct string* list){
     char* kv = buff +5;
     char* targetKey = strtok(kv, " ");
@@ -433,6 +438,7 @@ int select_str( int* fd, int database){
         return 1;
     }
 }
+
 
 
 void save(int* fd, struct string* list, char* path){
@@ -468,7 +474,6 @@ void save(int* fd, struct string* list, char* path){
 
 
 
-// function external sorting
 void externalSort(int* fd, const char *dir_path, const char *id) {
     
     //path for input file
@@ -561,6 +566,7 @@ void externalSort(int* fd, const char *dir_path, const char *id) {
 }
 
 
+
 void externalGet(int* fd, char* buff, const char *dir_path, const char *id){
     
     // key
@@ -590,7 +596,7 @@ void externalGet(int* fd, char* buff, const char *dir_path, const char *id){
         
         //searching the target key in the file
         while (fgets(line,sizeof(line),sort) != NULL) {
-           
+            
             char *key = strtok(line, " ");
             char *value = strtok(NULL, " ");
             
@@ -614,4 +620,4 @@ void externalGet(int* fd, char* buff, const char *dir_path, const char *id){
 
 
 
-    
+

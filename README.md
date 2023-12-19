@@ -13,6 +13,8 @@
 ├──server.h
 └──server.c
 ```
+Attention : ne pas deplacer ni les renommer
+
 ## Remarques  
 
 ### Execution 
