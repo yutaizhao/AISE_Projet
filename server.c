@@ -1,12 +1,14 @@
-#include "./server_lib/server_lib.h"
+#include "server_lib.h"
+#define COMMUN_DATA_PATH "./data/public/data_public"
+#define COMMUN_DIR_PATH "./data/public"
 
 void *handle_client(void *psocket);
 void create_server(char* port);
 
-struct string* public_cstring = NULL;
+struct string* public_cstring = NULL; //  a public string
 pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
-char* commun_data_path = "./data/public/data_public";
-char* commun_dir_path = "./data/public";
+
+
 
 int main(int argc, char **argv) {
     
@@ -14,8 +16,8 @@ int main(int argc, char **argv) {
         (void)fprintf(stderr, "Usage %s [PORT1] [PORT2]\n", argv[0]);
         exit(1);
     }
-
-    //
+    
+    //one thread for one server
     pthread_t thread1, thread2;
     
     mkdir("data",0777);
@@ -30,33 +32,53 @@ int main(int argc, char **argv) {
     
     fclose(file);
     
+    /*
+     Initialize a public string
+     */
+    
     public_cstring = (struct string*)malloc(sizeof(struct string));
     public_cstring->len = -1;
     public_cstring->type = 'N';
     public_cstring->key = NULL;
     public_cstring->value = NULL;
     public_cstring->next_KeyValue =NULL;
-
+    
     if (pthread_create(&thread1, NULL, (void *)create_server, argv[1]) != 0) { // otherwaise got warning
         perror("Error creating server 1");
         exit(1);
     }
-
+    
     if (pthread_create(&thread2, NULL, (void *)create_server, argv[2]) != 0) {
         perror("Error creating server 2");
         exit(1);
     }
-
-    // 主线程等待子线程结束
+    
     pthread_join(thread1, NULL);
     pthread_join(thread2, NULL);
     
-    free(public_cstring);
-
+    
+    /*
+     Free a public string when all servers close
+     */
+    
+    if(public_cstring!=NULL) {
+        while(public_cstring!=NULL && public_cstring->next_KeyValue!=NULL){
+            struct string* next = public_cstring->next_KeyValue;
+            free(public_cstring);
+            public_cstring = next;
+        }
+        free(public_cstring);
+    }
+    
     return 0;
 }
 
-//from tp
+
+
+/*
+ Creat 2 sockets
+ */
+
 void create_server(char* port) {
     //preparing server
     struct addrinfo hints;
@@ -106,9 +128,9 @@ void create_server(char* port) {
         (void)fprintf(stderr, "Failed to create server \n");
         exit(1);
     }
-
+    
     printf("Server listening on port %s...\n", port);
-
+    
     while (1) {
         struct sockaddr addr;
         socklen_t len = sizeof(struct sockaddr);
@@ -142,7 +164,7 @@ void *handle_client(void *psocket) {
     int client_fd = *((int *)psocket);
     char* client_id = (char*)malloc(sizeof(char)*12);
     
-    
+    //Client Identification
     int res = identification(&client_fd, client_id);
     if(res != 2){
         free(client_id);
@@ -151,19 +173,22 @@ void *handle_client(void *psocket) {
     }
     
     
-    //setting private_path
+    /*
+     setting path to save a user private string
+     */
+    
     size_t len_path_dir = snprintf(NULL, 0, "data/data_%s", client_id) + 1;
     char dir_path[len_path_dir];
     snprintf(dir_path, len_path_dir, "data/data_%s", client_id);
     mkdir(dir_path,0777);
-    printf("%s\n",dir_path);
     
     size_t len_path_file = snprintf(NULL, 0, "data/data_%s/data_%s", client_id,client_id) + 1;
     char data_path[len_path_file];
     snprintf(data_path, len_path_file, "data/data_%s/data_%s", client_id,client_id);
-    printf("%s\n",data_path);
-    //setting private_path
     
+    /*
+     Initialize a user private string
+     */
     
     struct string* client_string = (struct string*)malloc(sizeof(struct string));
     client_string->len = -1;
@@ -194,19 +219,22 @@ void *handle_client(void *psocket) {
         
         //ping
         if (strncmp(buff, "ping",4) == 0 && strlen(buff) ==5) { //ping0 = 5
-            //pong
             
             pong(&client_fd,client_id);
             printf("current data base is %d \n",current_string );
             
         }
-        //set
+        //set : set a key value
         else if (strncmp(buff, "SET", 3) == 0 && strlen(buff) >4)
         {
             if(check_SET_format(buff)==0){
                 send(client_fd, "Usage: SET [key] [value]\n", strlen("Usage: SET [key] [value]\n"), 0);
-            }else{
-                // set str
+            }else{ // format correct
+                
+                /*
+                 cheeck detabase
+                 */
+                
                 switch (current_string){
                     case 0:
                         set(&client_fd, buff, client_string);
@@ -214,30 +242,30 @@ void *handle_client(void *psocket) {
                     case 1:
                         if (pthread_mutex_trylock(&mutex) == 0){
                             set(&client_fd, buff, public_cstring);
-                            pthread_mutex_unlock(&mutex);
+                            pthread_mutex_unlock(&mutex); //lock the acceess cuz modifying
                         }else{
                             send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
                         }
                         break;
+                        
                 }
                 
             }
             
         }
-        //get
+        //get : get the value of a key
         else if (strncmp(buff, "GET", 3) == 0 && strlen(buff) >4)
         {
             if(check_GET_format(buff)==0){
                 send(client_fd, "Usage: GET [key]\n", strlen("Usage: GET [key]\n"), 0);
             }else{
-                // get str
                 switch (current_string){
                     case 0:
                         get(&client_fd, buff, client_string);
                         break;
                     case 1:
                         if (pthread_mutex_trylock(&mutex) == 0){
-                            pthread_mutex_unlock(&mutex);
+                            pthread_mutex_unlock(&mutex); //users can acceeess to a database at the same time, unlock immediatly
                             get(&client_fd, buff, public_cstring);
                         }else{
                             send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
@@ -248,13 +276,31 @@ void *handle_client(void *psocket) {
             }
             
         }
-        //DEL
+        //mget : get a key or multi-keys
+        else if (strncmp(buff, "MGET", 4) == 0 && strlen(buff) >5)
+        {
+            switch (current_string){
+                case 0:
+                    mget(&client_fd, buff, client_string);
+                    break;
+                case 1:
+                    if (pthread_mutex_trylock(&mutex) == 0){
+                        pthread_mutex_unlock(&mutex);
+                        mget(&client_fd, buff, public_cstring);
+                    }else{
+                        send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                    }
+                    
+                    break;
+            }
+            
+        }
+        //del : delete a key or multi-keys
         else if (strncmp(buff, "DEL", 3) == 0 && strlen(buff) >4)
         {
             if(buff[3] != ' '){
                 send(client_fd, "Usage: DEL [key]\n", strlen("Usage: DEL [key]\n"), 0);
             }else{
-                // get str
                 switch (current_string){
                     case 0:
                         del(&client_fd, buff, &client_string);
@@ -272,17 +318,39 @@ void *handle_client(void *psocket) {
             }
             
         }
-        //save
+        //incr : increment a key if key is int
+        else if (strncmp(buff, "INCR", 4) == 0 && strlen(buff) >5)
+        {
+            if(buff[4] != ' '){
+                send(client_fd, "Usage: INCR [key]\n", strlen("Usage: INCR [key]\n"), 0);
+            }else{
+                switch (current_string){
+                    case 0:
+                        incr(&client_fd, buff, client_string);
+                        break;
+                    case 1:
+                        if (pthread_mutex_trylock(&mutex) == 0){
+                            incr(&client_fd, buff, public_cstring);
+                            pthread_mutex_unlock(&mutex);
+                        }else{
+                            send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
+                        }
+                        
+                        break;
+                }
+            }
+            
+        }
+        //save : save the database into a file
         else if (strcmp(buff, "SAVE\n") == 0 )
         {
-            // save
             switch (current_string){
                 case 0:
                     save(&client_fd, client_string, data_path);
                     break;
                 case 1:
                     if (pthread_mutex_trylock(&mutex) == 0){
-                        save(&client_fd, public_cstring, commun_data_path);
+                        save(&client_fd, public_cstring, COMMUN_DATA_PATH);
                         pthread_mutex_unlock(&mutex);
                     }else{
                         send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
@@ -291,7 +359,7 @@ void *handle_client(void *psocket) {
             }
             
         }
-        //sort ext
+        //sort external : sort a file data
         else if (strcmp(buff, "SORT\n") == 0)
         {
             switch (current_string){
@@ -300,7 +368,7 @@ void *handle_client(void *psocket) {
                     break;
                 case 1:
                     if (pthread_mutex_trylock(&mutex) == 0){
-                        externalSort(&client_fd, commun_dir_path , "public");
+                        externalSort(&client_fd, COMMUN_DIR_PATH , "public");
                         pthread_mutex_unlock(&mutex);
                     }else{
                         send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
@@ -309,7 +377,7 @@ void *handle_client(void *psocket) {
             }
             
         }
-        // get ext
+        // get external : get a value from a key from exterenal memory
         else if (strncmp(buff, "FETCH", 5) == 0 && strlen(buff) > 6)
         {
             if(check_FETCH_format(buff)==0){
@@ -322,7 +390,7 @@ void *handle_client(void *psocket) {
                     case 1:
                         if (pthread_mutex_trylock(&mutex) == 0){
                             pthread_mutex_unlock(&mutex);
-                            externalGet(&client_fd, buff, commun_dir_path , "public");
+                            externalGet(&client_fd, buff, COMMUN_DIR_PATH , "public");
                         }else{
                             send(client_fd, "database is modifying by another user\n", strlen("database is modifying by another user\n"), 0);
                         }
@@ -331,13 +399,12 @@ void *handle_client(void *psocket) {
             }
             
         }
-        //select
+        //select : change data base, 0 = private, 1: public
         else if (strncmp(buff, "SELECT", 6) == 0 && strlen(buff) > 7)
         {
             if(buff[6] != ' '){
                 send(client_fd, "Usage: SELECT [nb]\n", strlen("Usage: SELECT [nb]\n"), 0);
             }else{
-                // select
                 int database = atoi(buff+7);
                 current_string = select_str(&client_fd, database);
                 
@@ -345,9 +412,13 @@ void *handle_client(void *psocket) {
         }
         else
         {
-            other(&client_fd, client_id);
+            other(&client_fd, client_id); // send unkown command
         }
     }
+    
+    /*
+     free a string and client id
+     */
     
     if(client_string!=NULL) {
         while(client_string!=NULL && client_string->next_KeyValue!=NULL){
@@ -356,7 +427,6 @@ void *handle_client(void *psocket) {
             client_string = next;
         }
         free(client_string);
-        printf("[%s] : client_string is free \n",client_id);
     }
     
     free(client_id);

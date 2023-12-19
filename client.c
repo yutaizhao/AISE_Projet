@@ -13,7 +13,10 @@ int main(int argc, char ** argv)
         fprintf(stderr, "USAGE: %s [HOST] [PORT]\n", argv[0]);
         return 1;
     }
-
+    
+    /*
+     Creating client...
+     */
 
     struct addrinfo hints;
     memset(&hints, 0, sizeof(struct addrinfo));
@@ -61,28 +64,33 @@ int main(int argc, char ** argv)
     }
     else
     {
-        printf("Connected to %s:%s\n", argv[1], argv[2]);
+        printf("Connecting to %s:%s...\n", argv[1], argv[2]);
         
     }
     
     
     /*
      client need to be added in white list
+     START IDENTIFICATION
      */
+    
     int login = 0 ;
     
-    char pass_buff[12];
-    char pass_rece[12];
+    char pass_buff[1024]; // my Id
+    char pass_rece[1024]; //valid or unvalid
     
+    // create a config for 1st execution
     
     FILE *config = fopen("config.txt", "wx");
 
     if (config != NULL) {
-        perror("config not existed, one is created, please set up your identifiant and communicate with the server \n");
+        perror("Config inexist, one is created, please set up your Id and communicate with the server \n");
         return 1;
     }
 
     fclose(config);
+    
+    //END
     
     FILE *file;
     file = fopen("config.txt", "r");
@@ -91,6 +99,7 @@ int main(int argc, char ** argv)
         return 1;
     }
     
+    //send to sever my ID
     if (fgets(pass_buff, sizeof(pass_buff), file) != NULL) {
         send(sock,pass_buff,sizeof(pass_buff),0);
         login = 1 ;
@@ -100,6 +109,7 @@ int main(int argc, char ** argv)
         return 1;
     }
     
+    //receive the checking result from server
     while(login == 1){
         
         ssize_t receiv_server = recv(sock, pass_rece, sizeof(pass_rece), 0);
@@ -120,13 +130,20 @@ int main(int argc, char ** argv)
     
     if(login == 2){
         if(strcmp(pass_rece,"valid")){
-            printf("login !!!\n");
+            printf("Connected\n");
         }else{
-            printf("unvalid indentity\n" );
+            printf("Unvalid indentity\n" );
             fclose(file);
             return 1;
         }
     }
+    
+    
+    
+    /*
+     END IDENTIFICATION
+     */
+    
     
     
     fclose(file);
@@ -146,7 +163,7 @@ int main(int argc, char ** argv)
  
                 if(sent_server == -1) {
                     perror("failed");
-                }else if (sent_server == 0) {
+                }else if (sent_server == 0) { //control C
                     printf("disconnection");
                     break;
                 }
