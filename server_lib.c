@@ -44,6 +44,7 @@ int identification(int* fd, char* Id){
             printf("a client disconnected\n" );
             ssize_t client_quit = send(*fd, pass_rece, client_indentity, 0);
             fclose(file);
+            break; //PROB!
         }
     }
     
